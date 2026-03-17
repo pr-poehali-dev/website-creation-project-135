@@ -20,19 +20,19 @@ type CatalogItem = {
 };
 
 const catalogItems: CatalogItem[] = [
-  { id: 1,  name: "Secret Lucky Block",           priceUsd: 1.70, stock: 0,   emoji: "🎲", category: "lucky" },
-  { id: 2,  name: "los Tacos Lucky Block 300m",   priceUsd: 1.20, stock: 62,  emoji: "🌮", category: "lucky" },
-  { id: 3,  name: "Heart Lucky Blocks",           priceUsd: 1.30, stock: 0,   emoji: "❤️", category: "lucky" },
-  { id: 4,  name: "Quesadilla Crocodila",         priceUsd: 1.90, stock: 64,  emoji: "🐊", category: "lucky" },
-  { id: 5,  name: "Burrito Bandito",              priceUsd: 1.90, stock: 42,  emoji: "🌯", category: "lucky" },
-  { id: 6,  name: "Los Quesadilla",               priceUsd: 1.80, stock: 0,   emoji: "🧀", category: "lucky" },
-  { id: 7,  name: "Chicleteira Bicicleteira",     priceUsd: 1.50, stock: 52,  emoji: "🚲", category: "lucky" },
-  { id: 8,  name: "67",                           priceUsd: 2.50, stock: 226, emoji: "🎯", category: "lucky" },
-  { id: 9,  name: "La Grande Combinasion",        priceUsd: 2.30, stock: 190, emoji: "✨", category: "lucky" },
-  { id: 10, name: "Los Nooo My Hotsportsitos",    priceUsd: 2.50, stock: 49,  emoji: "🌶️", category: "lucky" },
-  { id: 11, name: "Random PACK SAB x10",          priceUsd: 0.50, stock: 5,   emoji: "📦", category: "lucky" },
-  { id: 12, name: "Divine Secret Lucky Block",    priceUsd: 6.00, stock: 0,   emoji: "🔮", category: "lucky" },
-  { id: 13, name: "Leprechaun Lucky Block",       priceUsd: 1.40, stock: 0,   emoji: "🍀", category: "lucky" },
+  { id: 1,  name: "Secret Lucky Block x10",           priceUsd: 1.70, stock: 0,   emoji: "🎲", category: "lucky" },
+  { id: 2,  name: "los Tacos Lucky Block 300m x10",   priceUsd: 1.20, stock: 62,  emoji: "🌮", category: "lucky" },
+  { id: 3,  name: "Heart Lucky Blocks x10",           priceUsd: 1.30, stock: 0,   emoji: "❤️", category: "lucky" },
+  { id: 4,  name: "Quesadilla Crocodila x10",         priceUsd: 1.90, stock: 64,  emoji: "🐊", category: "lucky" },
+  { id: 5,  name: "Burrito Bandito x10",              priceUsd: 1.90, stock: 42,  emoji: "🌯", category: "lucky" },
+  { id: 6,  name: "Los Quesadilla x10",               priceUsd: 1.80, stock: 0,   emoji: "🧀", category: "lucky" },
+  { id: 7,  name: "Chicleteira Bicicleteira x10",     priceUsd: 1.50, stock: 52,  emoji: "🚲", category: "lucky" },
+  { id: 8,  name: "67 x10",                           priceUsd: 2.50, stock: 226, emoji: "🎯", category: "lucky" },
+  { id: 9,  name: "La Grande Combinasion x10",        priceUsd: 2.30, stock: 190, emoji: "✨", category: "lucky" },
+  { id: 10, name: "Los Nooo My Hotsportsitos x10",    priceUsd: 2.50, stock: 49,  emoji: "🌶️", category: "lucky" },
+  { id: 11, name: "Random PACK SAB x10",              priceUsd: 0.50, stock: 5,   emoji: "📦", category: "lucky" },
+  { id: 12, name: "Divine Secret Lucky Block x10",    priceUsd: 6.00, stock: 0,   emoji: "🔮", category: "lucky" },
+  { id: 13, name: "Leprechaun Lucky Block x10",   priceUsd: 1.40, stock: 0,   emoji: "🍀", category: "lucky" },
 ];
 
 const reviews = [
