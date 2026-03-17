@@ -399,15 +399,67 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return ok({"orders": orders})
 
-    # GET stock — остатки
+    # GET stock — полный список аккаунтов по товару (admin)
     if method == "GET" and action == "stock":
         if not is_admin:
             return err("Нет доступа", 403)
+        item_id = params.get("item_id")
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute("SELECT item_id, COUNT(*) FROM stock_accounts WHERE is_sold = FALSE GROUP BY item_id")
-        rows = cur.fetchall()
+        if item_id:
+            cur.execute("""
+                SELECT id, credentials, is_sold, sold_at, created_at
+                FROM stock_accounts WHERE item_id = %s ORDER BY created_at DESC
+            """, (item_id,))
+            rows = cur.fetchall()
+            items = [{"id": str(r[0]), "credentials": r[1], "is_sold": r[2], "sold_at": r[3], "created_at": r[4]} for r in rows]
+            conn.close()
+            return ok({"accounts": items})
+        else:
+            cur.execute("""
+                SELECT item_id, COUNT(*) FILTER (WHERE is_sold = FALSE) as available,
+                       COUNT(*) as total
+                FROM stock_accounts GROUP BY item_id ORDER BY item_id
+            """)
+            rows = cur.fetchall()
+            conn.close()
+            return ok({"stock": [{"item_id": r[0], "available": r[1], "total": r[2]} for r in rows]})
+
+    # POST add_stock — добавить аккаунты в сток (admin)
+    if method == "POST" and action == "add_stock":
+        if not is_admin:
+            return err("Нет доступа", 403)
+        item_id = body.get("item_id")
+        credentials_list = body.get("credentials", [])
+        if not item_id or not credentials_list:
+            return err("Нужны item_id и credentials")
+        if isinstance(credentials_list, str):
+            credentials_list = [c.strip() for c in credentials_list.strip().splitlines() if c.strip()]
+        conn = get_conn()
+        cur = conn.cursor()
+        added = 0
+        for cred in credentials_list:
+            cur.execute(
+                "INSERT INTO stock_accounts (item_id, credentials) VALUES (%s, %s)",
+                (item_id, cred.strip())
+            )
+            added += 1
+        conn.commit()
         conn.close()
-        return ok({"stock": {str(r[0]): r[1] for r in rows}})
+        return ok({"added": added})
+
+    # POST delete_stock — удалить аккаунт из стока (admin)
+    if method == "POST" and action == "delete_stock":
+        if not is_admin:
+            return err("Нет доступа", 403)
+        account_id = body.get("account_id")
+        if not account_id:
+            return err("Нужен account_id")
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("UPDATE stock_accounts SET is_sold = TRUE WHERE id = %s AND is_sold = FALSE", (account_id,))
+        conn.commit()
+        conn.close()
+        return ok({"success": True})
 
     return err("Неизвестный action", 404)
