@@ -32,7 +32,7 @@ const GAMES_LIST = [
   { id: "blade-ball", name: "Blade Ball" },
   { id: "rivals", name: "Rivals" },
   { id: "blox-fruits", name: "Blox Fruits" },
-  { id: "gift-op", name: "Gift OP" },
+  { id: "gift-op", name: "Escape Tsunami For Brainrots!" },
 ];
 
 function NewItemForm({ token, onCreated }: { token: string; onCreated: () => void }) {

@@ -58,7 +58,7 @@ const GAMES: Game[] = [
   },
   {
     id: "gift-op",
-    name: "Gift OP",
+    name: "Escape Tsunami For Brainrots!",
     image: "https://cdn.poehali.dev/projects/55eebfd7-5c19-4adf-ae5d-100fe458b847/bucket/43c99621-39bd-4d09-81f1-24201aa5dd32.png",
     description: "Подарки и редкие предметы",
   },
@@ -558,15 +558,8 @@ export default function Index() {
                 </div>
               ))}
 
-              {/* Lucky Blocks */}
+              {/* Товары */}
               <div className="mb-10">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="px-3 py-1 rounded-lg font-display font-bold text-sm text-white"
-                    style={{ background: "linear-gradient(135deg, #FFB800, #FF6B00)" }}>
-                    🎲 LUCKY BLOCKS
-                  </div>
-                  <div className="flex-1 h-px" style={{ background: "rgba(255,184,0,0.2)" }} />
-                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {(dbCatalog.length > 0 ? dbCatalog : catalogItems).filter(i => i.game === selectedGame && i.category === "lucky").map((item) => (
                     <CatalogCard key={item.id} item={{
