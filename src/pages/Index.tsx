@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { Link } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 import BuyModal from "@/components/BuyModal";
+import { useAuth } from "@/context/AuthContext";
 
 const HERO_IMG = "https://cdn.poehali.dev/projects/55eebfd7-5c19-4adf-ae5d-100fe458b847/files/063fb226-d199-4cc0-8b87-e4836625f644.jpg";
 const ITEMS_IMG = "https://cdn.poehali.dev/projects/55eebfd7-5c19-4adf-ae5d-100fe458b847/files/34974bc9-8d1b-47ea-a085-b096136f7c56.jpg";
@@ -138,6 +140,7 @@ function CatalogCard({ item }: { item: CatalogItem }) {
 }
 
 export default function Index() {
+  const { user } = useAuth();
   const [activeSection, setActiveSection] = useState("Главная");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
@@ -194,13 +197,30 @@ export default function Index() {
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {user ? (
+              <Link to="/profile"
+                className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
+                style={{ background: "rgba(0,102,255,0.15)", border: "1px solid rgba(0,102,255,0.3)" }}>
+                <div className="w-5 h-5 rounded-md flex items-center justify-center text-xs font-bold"
+                  style={{ background: "linear-gradient(135deg, #0066FF, #E8343A)" }}>
+                  {user.username[0].toUpperCase()}
+                </div>
+                {user.username}
+              </Link>
+            ) : (
+              <Link to="/login"
+                className="hidden md:block px-4 py-2 rounded-xl font-body font-bold text-sm text-white/70 hover:text-white transition-all"
+                style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
+                Войти
+              </Link>
+            )}
             <button
               onClick={() => scrollTo("Каталог")}
               className="hidden md:block btn-shimmer px-5 py-2 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
               style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}
             >
-              Купить Robux
+              Каталог
             </button>
             <button
               className="md:hidden text-white/70 hover:text-white p-2"

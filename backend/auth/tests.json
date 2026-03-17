@@ -1,0 +1,45 @@
+{
+  "tests": [
+    {
+      "name": "Register new user",
+      "method": "POST",
+      "path": "/?action=register",
+      "body": {"username": "testuser123", "email": "test123@example.com", "password": "password123"},
+      "expectedStatus": 200,
+      "expectedBody": {"token": "string"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Register duplicate",
+      "method": "POST",
+      "path": "/?action=register",
+      "body": {"username": "testuser123", "email": "test123@example.com", "password": "password123"},
+      "expectedStatus": 400,
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Login wrong password",
+      "method": "POST",
+      "path": "/?action=login",
+      "body": {"login": "test123@example.com", "password": "wrongpass"},
+      "expectedStatus": 401,
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Login correct",
+      "method": "POST",
+      "path": "/?action=login",
+      "body": {"login": "test123@example.com", "password": "password123"},
+      "expectedStatus": 200,
+      "expectedBody": {"token": "string"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get me without token",
+      "method": "GET",
+      "path": "/?action=me",
+      "expectedStatus": 401,
+      "bodyMatcher": "partial"
+    }
+  ]
+}

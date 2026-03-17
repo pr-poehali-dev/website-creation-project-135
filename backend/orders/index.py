@@ -210,11 +210,21 @@ def handler(event: dict, context) -> dict:
     action = params.get("action", "")
     headers = event.get("headers") or {}
     token = headers.get("X-Admin-Token", "")
+    auth_token = headers.get("X-Auth-Token", "")
     is_admin = token == ADMIN_TOKEN
 
     body = {}
     if event.get("body"):
         body = json.loads(event["body"])
+
+    # Получаем user_id из токена авторизации
+    def get_user_id_from_token(conn, tok):
+        if not tok:
+            return None
+        cur2 = conn.cursor()
+        cur2.execute("SELECT user_id FROM user_sessions WHERE token = %s", (tok,))
+        row = cur2.fetchone()
+        return str(row[0]) if row else None
 
     # POST create — создать заказ
     if method == "POST" and action == "create":
@@ -240,10 +250,11 @@ def handler(event: dict, context) -> dict:
 
         address = CRYPTO_ADDRESSES[network]
         total_usd = float(price_usd) * quantity
+        user_id = get_user_id_from_token(conn, auth_token)
 
         cur.execute(
-            "INSERT INTO orders (item_id, item_name, price_usd, quantity, crypto_network, crypto_address, status) VALUES (%s, %s, %s, %s, %s, %s, 'pending') RETURNING id, created_at",
-            (item_id, item_name, total_usd, quantity, network, address)
+            "INSERT INTO orders (item_id, item_name, price_usd, quantity, crypto_network, crypto_address, status, user_id) VALUES (%s, %s, %s, %s, %s, %s, 'pending', %s) RETURNING id, created_at",
+            (item_id, item_name, total_usd, quantity, network, address, user_id)
         )
         order_id, created_at = cur.fetchone()
         conn.commit()

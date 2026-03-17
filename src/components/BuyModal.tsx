@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import Icon from "@/components/ui/icon";
+import { useAuth } from "@/context/AuthContext";
 
 const ORDERS_URL = "https://functions.poehali.dev/f852d147-eae1-4265-a94d-63d014c42231";
 
@@ -25,6 +26,7 @@ type Props = {
 
 export default function BuyModal({ item, onClose }: Props) {
   const navigate = useNavigate();
+  const { user, token } = useAuth();
   const [network, setNetwork] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -38,9 +40,11 @@ export default function BuyModal({ item, onClose }: Props) {
     setLoading(true);
     setError("");
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["X-Auth-Token"] = token;
       const res = await fetch(`${ORDERS_URL}?action=create`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           item_id: item.id,
           item_name: item.name,
@@ -56,6 +60,37 @@ export default function BuyModal({ item, onClose }: Props) {
       setError("Ошибка соединения, попробуй ещё раз");
       setLoading(false);
     }
+  }
+
+  // Не авторизован — предлагаем войти
+  if (!user) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
+        onClick={onClose}>
+        <div className="w-full max-w-sm rounded-2xl p-8 text-center animate-bounce-in"
+          style={{ background: "#161F2C", border: "1px solid rgba(0,102,255,0.2)" }}
+          onClick={e => e.stopPropagation()}>
+          <div className="text-4xl mb-3">🔐</div>
+          <h3 className="font-display font-bold text-white text-xl mb-2">Нужен аккаунт</h3>
+          <p className="font-body text-white/50 text-sm mb-6">
+            Чтобы купить товар, войди в аккаунт или зарегистрируйся — это бесплатно!
+          </p>
+          <div className="flex flex-col gap-3">
+            <Link to="/login" onClick={onClose}
+              className="w-full py-3 rounded-xl font-body font-bold text-white text-sm text-center transition-all hover:scale-105"
+              style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
+              Войти в аккаунт
+            </Link>
+            <Link to="/register" onClick={onClose}
+              className="w-full py-3 rounded-xl font-body font-bold text-sm text-center transition-all hover:scale-105"
+              style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}>
+              Создать аккаунт
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
