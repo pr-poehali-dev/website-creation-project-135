@@ -26,7 +26,7 @@ const catalogItems: CatalogItem[] = [
   { id: 8,  name: "67",                           priceUsd: 2.50, stock: 226, emoji: "🎯", category: "lucky" },
   { id: 9,  name: "La Grande Combinasion",        priceUsd: 2.30, stock: 190, emoji: "✨", category: "lucky" },
   { id: 10, name: "Los Nooo My Hotsportsitos",    priceUsd: 2.50, stock: 49,  emoji: "🌶️", category: "lucky" },
-  { id: 11, name: "Random PACK SAB",              priceUsd: 0.50, stock: 0,   emoji: "📦", category: "lucky" },
+  { id: 11, name: "Random PACK SAB",              priceUsd: 0.50, stock: 5,   emoji: "📦", category: "lucky" },
   { id: 12, name: "Divine Secret Lucky Block",    priceUsd: 6.00, stock: 0,   emoji: "🔮", category: "lucky" },
   { id: 13, name: "Leprechaun Lucky Block",       priceUsd: 1.40, stock: 0,   emoji: "🍀", category: "lucky" },
 ];
