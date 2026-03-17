@@ -40,79 +40,114 @@ const reviews = [
 
 const sections = ["Главная", "Каталог", "Отзывы", "Поддержка"];
 
-function CatalogCard({ item, onBuy }: { item: CatalogItem; onBuy: (item: CatalogItem) => void }) {
+function CatalogCard({ item }: { item: CatalogItem }) {
   const inStock = item.stock > 0;
   const priceRub = Math.ceil(item.priceUsd * USD_TO_RUB);
+  const [open, setOpen] = useState(false);
+
+  function handleBuy() {
+    setOpen(true);
+  }
 
   return (
-    <div
-      className="rounded-2xl p-5"
-      style={{
-        background: "rgba(22, 31, 44, 0.9)",
-        border: `1px solid ${inStock ? "rgba(0,176,111,0.2)" : "rgba(255,255,255,0.05)"}`,
-        opacity: inStock ? 1 : 0.7,
-      }}
-    >
-      <div className="flex justify-between items-start mb-3">
-        <span
-          className="inline-flex items-center gap-1 px-2 py-1 rounded-md font-body font-bold text-xs"
-          style={{
-            background: inStock ? "rgba(0,176,111,0.15)" : "rgba(232,52,58,0.15)",
-            color: inStock ? "#00D080" : "#FF6B6B",
-          }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: inStock ? "#00D080" : "#FF6B6B" }} />
-          {inStock ? `В наличии: ${item.stock}` : "Нет в наличии"}
-        </span>
-        <div className="text-2xl">{item.emoji}</div>
-      </div>
-
-      <h3 className="font-display font-bold text-base text-white mb-3 leading-tight">{item.name}</h3>
-
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="font-display font-bold text-xl" style={{ color: "#4DA6FF" }}>
-            💸 ${item.priceUsd.toFixed(2)}
-          </div>
-          <div className="font-body text-xs text-white/40 mt-0.5">≈ {priceRub} ₽</div>
-        </div>
-        {inStock ? (
-          <button
-            onClick={() => onBuy(item)}
-            className="font-body font-bold text-sm text-white"
-            style={{
-              background: "linear-gradient(135deg, #0066FF, #0044BB)",
-              borderRadius: "12px",
-              padding: "12px 20px",
-              minWidth: "84px",
-              minHeight: "44px",
-              touchAction: "manipulation",
-              WebkitTapHighlightColor: "transparent",
-              border: "none",
-              cursor: "pointer",
-            }}
-          >
-            Купить
-          </button>
-        ) : (
+    <>
+      <div
+        className="rounded-2xl p-5"
+        style={{
+          background: "rgba(22, 31, 44, 0.9)",
+          border: `1px solid ${inStock ? "rgba(0,176,111,0.2)" : "rgba(255,255,255,0.05)"}`,
+          opacity: inStock ? 1 : 0.7,
+        }}
+      >
+        <div className="flex justify-between items-start mb-3">
           <span
-            className="font-body font-bold text-sm text-white/30"
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-md font-body font-bold text-xs"
             style={{
-              background: "rgba(255,255,255,0.08)",
-              borderRadius: "12px",
-              padding: "12px 20px",
-              minWidth: "84px",
-              minHeight: "44px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              background: inStock ? "rgba(0,176,111,0.15)" : "rgba(232,52,58,0.15)",
+              color: inStock ? "#00D080" : "#FF6B6B",
             }}
           >
-            Ждать
+            <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: inStock ? "#00D080" : "#FF6B6B" }} />
+            {inStock ? `В наличии: ${item.stock}` : "Нет в наличии"}
           </span>
-        )}
+          <div className="text-2xl">{item.emoji}</div>
+        </div>
+
+        <h3 className="font-display font-bold text-base text-white mb-3 leading-tight">{item.name}</h3>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-display font-bold text-xl" style={{ color: "#4DA6FF" }}>
+              💸 ${item.priceUsd.toFixed(2)}
+            </div>
+            <div className="font-body text-xs text-white/40 mt-0.5">≈ {priceRub} ₽</div>
+          </div>
+          {inStock ? (
+            <button
+              type="button"
+              onClick={handleBuy}
+              style={{
+                background: "linear-gradient(135deg, #0066FF, #0044BB)",
+                borderRadius: "12px",
+                padding: "12px 20px",
+                minWidth: "84px",
+                minHeight: "44px",
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
+                border: "none",
+                cursor: "pointer",
+                color: "white",
+                fontFamily: "Nunito, sans-serif",
+                fontWeight: 700,
+                fontSize: "14px",
+              }}
+            >
+              Купить
+            </button>
+          ) : (
+            <span
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                borderRadius: "12px",
+                padding: "12px 20px",
+                minWidth: "84px",
+                minHeight: "44px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "rgba(255,255,255,0.3)",
+                fontFamily: "Nunito, sans-serif",
+                fontWeight: 700,
+                fontSize: "14px",
+              }}
+            >
+              Ждать
+            </span>
+          )}
+        </div>
       </div>
-    </div>
+
+      {open && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px",
+            background: "rgba(0,0,0,0.75)",
+            backdropFilter: "blur(8px)",
+          }}
+          onClick={() => setOpen(false)}
+        >
+          <div onClick={e => e.stopPropagation()}>
+            <BuyModal item={item} onClose={() => setOpen(false)} />
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -122,7 +157,7 @@ export default function Index() {
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [supportModalOpen, setSupportModalOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [buyItem, setBuyItem] = useState<CatalogItem | null>(null);
+
 
   useEffect(() => {
     setLoaded(true);
@@ -312,7 +347,7 @@ export default function Index() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {catalogItems.filter(i => i.category === "lucky").map((item) => (
-                <CatalogCard key={item.id} item={item} onBuy={setBuyItem} />
+                <CatalogCard key={item.id} item={item} />
               ))}
             </div>
           </div>
@@ -629,10 +664,7 @@ export default function Index() {
         </div>
       )}
 
-      {/* ---- BUY MODAL — рендерится на верхнем уровне ---- */}
-      {buyItem && (
-        <BuyModal item={buyItem} onClose={() => setBuyItem(null)} />
-      )}
+
     </div>
   );
 }
