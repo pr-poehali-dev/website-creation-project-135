@@ -4,13 +4,36 @@ import Icon from "@/components/ui/icon";
 const HERO_IMG = "https://cdn.poehali.dev/projects/55eebfd7-5c19-4adf-ae5d-100fe458b847/files/063fb226-d199-4cc0-8b87-e4836625f644.jpg";
 const ITEMS_IMG = "https://cdn.poehali.dev/projects/55eebfd7-5c19-4adf-ae5d-100fe458b847/files/34974bc9-8d1b-47ea-a085-b096136f7c56.jpg";
 
-const catalogItems = [
-  { id: 1, name: "400 Robux", price: "119 ₽", badge: "hot", emoji: "💎", color: "blue", desc: "Базовый пак Robux для покупок в игре" },
-  { id: 2, name: "800 Robux", price: "229 ₽", badge: "sale", emoji: "🔷", color: "blue", desc: "Популярный набор со скидкой" },
-  { id: 3, name: "1700 Robux", price: "449 ₽", badge: "hot", emoji: "🌟", color: "yellow", desc: "Выгодный пак для активных игроков" },
-  { id: 4, name: "Roblox Premium 450", price: "249 ₽", badge: "new", emoji: "👑", color: "yellow", desc: "Подписка + ежемесячные Robux" },
-  { id: 5, name: "Roblox Premium 1000", price: "449 ₽", badge: "sale", emoji: "🏆", color: "red", desc: "Расширенная подписка Premium" },
-  { id: 6, name: "4500 Robux", price: "999 ₽", badge: "hot", emoji: "🎮", color: "red", desc: "Большой пак для хардкор-игроков" },
+const USD_TO_RUB = 90;
+
+type CatalogItem = {
+  id: number;
+  name: string;
+  priceUsd: number;
+  stock: number;
+  emoji: string;
+  category: "lucky" | "other";
+};
+
+const catalogItems: CatalogItem[] = [
+  { id: 1,  name: "Secret Lucky Block",           priceUsd: 1.45, stock: 0,   emoji: "🎲", category: "lucky" },
+  { id: 2,  name: "los Tacos Lucky Block 300m",   priceUsd: 0.80, stock: 62,  emoji: "🌮", category: "lucky" },
+  { id: 3,  name: "Heart Lucky Blocks",           priceUsd: 1.00, stock: 0,   emoji: "❤️", category: "lucky" },
+  { id: 4,  name: "Quesadilla Crocodila",         priceUsd: 1.60, stock: 64,  emoji: "🐊", category: "lucky" },
+  { id: 5,  name: "Burrito Bandito",              priceUsd: 1.60, stock: 42,  emoji: "🌯", category: "lucky" },
+  { id: 6,  name: "Los Quesadilla",               priceUsd: 1.80, stock: 0,   emoji: "🧀", category: "lucky" },
+  { id: 7,  name: "Chicleteira Bicicleteira",     priceUsd: 1.20, stock: 52,  emoji: "🚲", category: "lucky" },
+  { id: 8,  name: "67",                           priceUsd: 1.80, stock: 226, emoji: "🎯", category: "lucky" },
+  { id: 9,  name: "La Grande Combinasion",        priceUsd: 1.90, stock: 191, emoji: "✨", category: "lucky" },
+  { id: 10, name: "Los Nooo My Hotsportsitos",    priceUsd: 2.10, stock: 49,  emoji: "🌶️", category: "lucky" },
+  { id: 11, name: "Random PACK SAB",              priceUsd: 0.35, stock: 0,   emoji: "📦", category: "lucky" },
+  { id: 12, name: "Divine Secret Lucky Block",    priceUsd: 6.00, stock: 0,   emoji: "🔮", category: "lucky" },
+  { id: 13, name: "Leprechaun Lucky Block",       priceUsd: 1.15, stock: 0,   emoji: "🍀", category: "lucky" },
+  { id: 14, name: "Heart Wand mm2",               priceUsd: 2.50, stock: 0,   emoji: "💝", category: "other" },
+  { id: 15, name: "Godhuman + max level",         priceUsd: 0.30, stock: 69,  emoji: "⚡", category: "other" },
+  { id: 16, name: "Godmax + 1 mythical fruit",    priceUsd: 0.33, stock: 0,   emoji: "🍎", category: "other" },
+  { id: 17, name: "God cdk sgt fg v4 rd races",   priceUsd: 1.50, stock: 0,   emoji: "🏎️", category: "other" },
+  { id: 18, name: "God cdk sgt fg v4 ghoul",      priceUsd: 1.70, stock: 0,   emoji: "👻", category: "other" },
 ];
 
 const reviews = [
@@ -20,6 +43,54 @@ const reviews = [
 ];
 
 const sections = ["Главная", "Каталог", "Отзывы", "Поддержка"];
+
+function CatalogCard({ item }: { item: CatalogItem }) {
+  const inStock = item.stock > 0;
+  const priceRub = Math.ceil(item.priceUsd * USD_TO_RUB);
+
+  return (
+    <div
+      className="hover-lift rounded-2xl p-5 cursor-pointer transition-all duration-300"
+      style={{
+        background: "rgba(22, 31, 44, 0.9)",
+        border: `1px solid ${inStock ? "rgba(0,176,111,0.2)" : "rgba(255,255,255,0.05)"}`,
+        opacity: inStock ? 1 : 0.7,
+      }}
+    >
+      <div className="flex justify-between items-start mb-3">
+        <span
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-md font-body font-bold text-xs"
+          style={{
+            background: inStock ? "rgba(0,176,111,0.15)" : "rgba(232,52,58,0.15)",
+            color: inStock ? "#00D080" : "#FF6B6B",
+          }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: inStock ? "#00D080" : "#FF6B6B" }} />
+          {inStock ? `В наличии: ${item.stock}` : "Нет в наличии"}
+        </span>
+        <div className="text-2xl">{item.emoji}</div>
+      </div>
+
+      <h3 className="font-display font-bold text-base text-white mb-3 leading-tight">{item.name}</h3>
+
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="font-display font-bold text-xl" style={{ color: "#4DA6FF" }}>
+            💸 ${item.priceUsd.toFixed(2)}
+          </div>
+          <div className="font-body text-xs text-white/40 mt-0.5">≈ {priceRub} ₽</div>
+        </div>
+        <button
+          className="btn-shimmer px-4 py-2 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+          disabled={!inStock}
+          style={{ background: inStock ? "linear-gradient(135deg, #0066FF, #0044BB)" : "rgba(255,255,255,0.08)" }}
+        >
+          {inStock ? "Купить" : "Ждать"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function Index() {
   const [activeSection, setActiveSection] = useState("Главная");
@@ -205,44 +276,53 @@ export default function Index() {
             <div className="pixel-divider max-w-xs mx-auto mt-4" />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {catalogItems.map((item, i) => (
-              <div
-                key={item.id}
-                className="hover-lift rounded-2xl p-5 cursor-pointer transition-all duration-300 hover:border-blue-500/40"
-                style={{
-                  background: "rgba(22, 31, 44, 0.9)",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                }}
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <span className={`badge-${item.badge}`}>
-                    {item.badge === "hot" ? "🔥 Хит" : item.badge === "new" ? "✨ Новинка" : "💚 Скидка"}
-                  </span>
-                  <div className="text-3xl">{item.emoji}</div>
-                </div>
-                <h3 className="font-display font-bold text-xl text-white mb-1">{item.name}</h3>
-                <p className="font-body text-sm text-white/40 mb-4">{item.desc}</p>
-                <div className="flex items-center justify-between mt-auto">
-                  <span className="font-display font-bold text-2xl"
-                    style={{ color: item.color === "yellow" ? "#FFB800" : item.color === "red" ? "#FF6B6B" : "#4DA6FF" }}>
-                    {item.price}
-                  </span>
-                  <button
-                    className="btn-shimmer px-5 py-2 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
-                    style={{
-                      background: item.color === "yellow"
-                        ? "linear-gradient(135deg, #FFB800, #FF6B00)"
-                        : item.color === "red"
-                          ? "linear-gradient(135deg, #E8343A, #B02020)"
-                          : "linear-gradient(135deg, #0066FF, #0044BB)"
-                    }}
-                  >
-                    Купить
-                  </button>
-                </div>
+          {/* Lucky Blocks */}
+          <div className="mb-10">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="px-3 py-1 rounded-lg font-display font-bold text-sm text-white"
+                style={{ background: "linear-gradient(135deg, #FFB800, #FF6B00)" }}>
+                🎲 LUCKY BLOCKS
               </div>
-            ))}
+              <div className="flex-1 h-px" style={{ background: "rgba(255,184,0,0.2)" }} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {catalogItems.filter(i => i.category === "lucky").map((item) => (
+                <CatalogCard key={item.id} item={item} />
+              ))}
+            </div>
+          </div>
+
+          {/* Other Games */}
+          <div className="mb-10">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="px-3 py-1 rounded-lg font-display font-bold text-sm text-white"
+                style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
+                🎮 OTHER GAME STOCK
+              </div>
+              <div className="flex-1 h-px" style={{ background: "rgba(0,102,255,0.2)" }} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {catalogItems.filter(i => i.category === "other").map((item) => (
+                <CatalogCard key={item.id} item={item} />
+              ))}
+            </div>
+          </div>
+
+          {/* Crypto payments */}
+          <div className="rounded-2xl p-5 mb-2 flex flex-col sm:flex-row items-center gap-4"
+            style={{ background: "rgba(22,31,44,0.9)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div>
+              <div className="font-display font-bold text-white text-base mb-1">💳 ПРИНИМАЕМ КРИПТУ</div>
+              <div className="font-body text-white/40 text-sm">Быстро и без комиссий</div>
+            </div>
+            <div className="flex flex-wrap gap-2 sm:ml-auto">
+              {["LTC", "USDT (BEP20)", "USDC (ERC20)", "SOL"].map(c => (
+                <span key={c} className="px-3 py-1 rounded-lg font-body font-bold text-xs text-white"
+                  style={{ background: "rgba(0,102,255,0.15)", border: "1px solid rgba(0,102,255,0.25)" }}>
+                  {c}
+                </span>
+              ))}
+            </div>
           </div>
 
           <div className="mt-10 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4"
