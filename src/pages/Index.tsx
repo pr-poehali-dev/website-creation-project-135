@@ -345,7 +345,7 @@ export default function Index() {
               C
             </div>
             <span className="font-display font-bold text-xl tracking-wider text-white">
-              Cambeck<span style={{ color: "#FFB800" }}>SHOP</span>
+              КамбекШОП
             </span>
           </div>
 
@@ -453,7 +453,7 @@ export default function Index() {
           </div>
 
           <h1 className={`font-display font-bold text-5xl md:text-7xl text-white mb-4 leading-tight transition-all duration-700 delay-100 ${loaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
-            Cambeck<span className="roblox-text-gradient">SHOP</span>
+            Камбек<span className="roblox-text-gradient">ШОП</span>
           </h1>
 
           <p className={`text-white/60 text-lg md:text-xl font-body mb-3 transition-all duration-700 delay-200 ${loaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
@@ -805,10 +805,10 @@ export default function Index() {
               C
             </div>
             <span className="font-display font-bold text-base text-white">
-              Cambeck<span style={{ color: "#FFB800" }}>SHOP</span>
+              КамбекШОП
             </span>
           </div>
-          <p className="font-body text-white/30 text-sm">© 2026 CambeckSHOP. Все права защищены.</p>
+          <p className="font-body text-white/30 text-sm">© 2026 КамбекШОП. Все права защищены.</p>
           <div className="flex gap-4">
             {["Каталог", "Отзывы", "Поддержка"].map((s) => (
               <button key={s} onClick={() => scrollTo(s)}

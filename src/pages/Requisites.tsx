@@ -26,7 +26,7 @@ const Requisites = () => {
               </div>
               <div className="flex justify-between border-b pb-3">
                 <span className="text-muted-foreground">Наименование</span>
-                <span className="font-medium">CambeckSHOP</span>
+                <span className="font-medium">КамбекШОП</span>
               </div>
               <div className="flex justify-between border-b pb-3">
                 <span className="text-muted-foreground">Сайт</span>

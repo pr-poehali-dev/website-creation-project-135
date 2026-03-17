@@ -39,7 +39,7 @@ export default function Profile() {
           <div className="w-8 h-8 rounded-lg flex items-center justify-center font-display font-bold text-white text-sm"
             style={{ background: "linear-gradient(135deg, #0066FF, #E8343A)" }}>C</div>
           <span className="font-display font-bold text-white">
-            Cambeck<span style={{ color: "#FFB800" }}>SHOP</span>
+            КамбекШОП
           </span>
         </Link>
         <div className="flex items-center gap-3">

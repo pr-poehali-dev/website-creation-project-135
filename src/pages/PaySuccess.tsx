@@ -43,7 +43,7 @@ export default function PaySuccess() {
           <div className="text-5xl mb-4">✅</div>
           <h1 className="font-display font-bold text-white text-2xl mb-2">Оплата прошла!</h1>
           <p className="font-body text-white/50 text-sm mb-6">
-            {itemName ? `Заказ: ${itemName}` : "Спасибо за покупку в CambeckSHOP!"}
+            {itemName ? `Заказ: ${itemName}` : "Спасибо за покупку в КамбекШОП!"}
           </p>
 
           {loading && (

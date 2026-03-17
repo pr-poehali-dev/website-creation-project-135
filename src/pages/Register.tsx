@@ -34,7 +34,7 @@ export default function Register() {
             <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-display font-bold text-white"
               style={{ background: "linear-gradient(135deg, #0066FF, #E8343A)" }}>C</div>
             <span className="font-display font-bold text-xl text-white">
-              Cambeck<span style={{ color: "#FFB800" }}>SHOP</span>
+              КамбекШОП
             </span>
           </Link>
           <h1 className="font-display font-bold text-white text-2xl">Создать аккаунт</h1>
