@@ -80,9 +80,14 @@ function CatalogCard({ item }: { item: CatalogItem }) {
         </div>
         <button
           onClick={() => inStock && setShowBuy(true)}
-          className="btn-shimmer px-4 py-2 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+          className="btn-shimmer px-5 py-3 rounded-xl font-body font-bold text-sm text-white transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
           disabled={!inStock}
-          style={{ background: inStock ? "linear-gradient(135deg, #0066FF, #0044BB)" : "rgba(255,255,255,0.08)" }}
+          style={{
+            background: inStock ? "linear-gradient(135deg, #0066FF, #0044BB)" : "rgba(255,255,255,0.08)",
+            minWidth: "80px",
+            touchAction: "manipulation",
+            WebkitTapHighlightColor: "transparent",
+          }}
         >
           {inStock ? "Купить" : "Ждать"}
         </button>
