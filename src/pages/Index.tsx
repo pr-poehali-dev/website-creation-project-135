@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
 import Icon from "@/components/ui/icon";
 import BuyModal from "@/components/BuyModal";
 
@@ -41,10 +40,9 @@ const reviews = [
 
 const sections = ["Главная", "Каталог", "Отзывы", "Поддержка"];
 
-function CatalogCard({ item }: { item: CatalogItem }) {
+function CatalogCard({ item, onBuy }: { item: CatalogItem; onBuy: (item: CatalogItem) => void }) {
   const inStock = item.stock > 0;
   const priceRub = Math.ceil(item.priceUsd * USD_TO_RUB);
-  const [showBuy, setShowBuy] = useState(false);
 
   return (
     <div
@@ -78,32 +76,42 @@ function CatalogCard({ item }: { item: CatalogItem }) {
           </div>
           <div className="font-body text-xs text-white/40 mt-0.5">≈ {priceRub} ₽</div>
         </div>
-        <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (inStock) setShowBuy(true); }}
-          onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); if (inStock) setShowBuy(true); }}
-          className="btn-shimmer font-body font-bold text-sm text-white disabled:opacity-40"
-          disabled={!inStock}
-          style={{
-            background: inStock ? "linear-gradient(135deg, #0066FF, #0044BB)" : "rgba(255,255,255,0.08)",
-            borderRadius: "12px",
-            padding: "12px 20px",
-            minWidth: "84px",
-            minHeight: "44px",
-            touchAction: "manipulation",
-            WebkitTapHighlightColor: "transparent",
-            cursor: inStock ? "pointer" : "default",
-            border: "none",
-            display: "block",
-          }}
-        >
-          {inStock ? "Купить" : "Ждать"}
-        </button>
+        {inStock ? (
+          <button
+            onClick={() => onBuy(item)}
+            className="font-body font-bold text-sm text-white"
+            style={{
+              background: "linear-gradient(135deg, #0066FF, #0044BB)",
+              borderRadius: "12px",
+              padding: "12px 20px",
+              minWidth: "84px",
+              minHeight: "44px",
+              touchAction: "manipulation",
+              WebkitTapHighlightColor: "transparent",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            Купить
+          </button>
+        ) : (
+          <span
+            className="font-body font-bold text-sm text-white/30"
+            style={{
+              background: "rgba(255,255,255,0.08)",
+              borderRadius: "12px",
+              padding: "12px 20px",
+              minWidth: "84px",
+              minHeight: "44px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            Ждать
+          </span>
+        )}
       </div>
-
-      {showBuy && createPortal(
-        <BuyModal item={item} onClose={() => setShowBuy(false)} />,
-        document.body
-      )}
     </div>
   );
 }
@@ -114,6 +122,7 @@ export default function Index() {
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [supportModalOpen, setSupportModalOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [buyItem, setBuyItem] = useState<CatalogItem | null>(null);
 
   useEffect(() => {
     setLoaded(true);
@@ -303,7 +312,7 @@ export default function Index() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {catalogItems.filter(i => i.category === "lucky").map((item) => (
-                <CatalogCard key={item.id} item={item} />
+                <CatalogCard key={item.id} item={item} onBuy={setBuyItem} />
               ))}
             </div>
           </div>
@@ -618,6 +627,11 @@ export default function Index() {
             </p>
           </div>
         </div>
+      )}
+
+      {/* ---- BUY MODAL — рендерится на верхнем уровне ---- */}
+      {buyItem && (
+        <BuyModal item={buyItem} onClose={() => setBuyItem(null)} />
       )}
     </div>
   );
