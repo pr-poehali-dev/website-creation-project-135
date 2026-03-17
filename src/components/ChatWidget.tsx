@@ -12,7 +12,83 @@ function getVisitorId() {
   return id;
 }
 
-type Message = { id: string; sender: string; text: string; created_at: string };
+type Message = { id: string; sender: string; text: string; created_at: string; isBot?: boolean };
+
+const BOT_DELAY = 700;
+
+const FAQ: { keywords: string[]; answer: string }[] = [
+  {
+    keywords: ["оплат", "платить", "заплатить", "способ", "карт", "крипт", "криптовалют", "usdt", "ltc", "sol", "litecoin", "solana"],
+    answer: "💳 Принимаем оплату криптовалютой: LTC, USDT (BEP20/TRC20), SOL.\n\nКарты пока временно недоступны — используй крипту. Это быстро и безопасно!",
+  },
+  {
+    keywords: ["когда", "приде", "придёт", "ждать", "время", "долго", "быстро", "скоро", "сроки"],
+    answer: "⚡ Товары из Steal a Brainrot выдаются автоматически сразу после подтверждения оплаты — обычно меньше минуты.\n\nДля других игр (Blade Ball, Rivals, Blox Fruits и др.) я передаю товар вручную через игру — как правило в течение нескольких минут после оплаты.",
+  },
+  {
+    keywords: ["как получить", "получить товар", "выдача", "выдают", "где товар", "где аккаунт"],
+    answer: "📦 После оплаты:\n\n• Steal a Brainrot — аккаунт появится прямо на странице оплаты автоматически.\n• Другие игры — открой чат, я свяжусь с тобой и передам товар через друзья в игре.",
+  },
+  {
+    keywords: ["возврат", "верните", "вернуть", "отмен", "не пришло", "не получил", "обман", "скам"],
+    answer: "🔄 Если товар не пришёл или возникла проблема — напиши здесь, разберёмся!\n\nВозврат возможен если товар не был активирован. Обратись к оператору, решим быстро.",
+  },
+  {
+    keywords: ["цен", "стоит", "сколько", "прайс", "дорого", "дешево", "скидк"],
+    answer: "💰 Все цены указаны в каталоге на сайте в рублях (курс ЦБ РФ обновляется каждые 30 минут).\n\nМы стараемся держать лучшие цены на рынке! Если нашёл дешевле — напиши, обсудим.",
+  },
+  {
+    keywords: ["steal", "брейнрот", "brainrot", "токен", "trade token", "юнит", "lucky block", "мутац"],
+    answer: "🎮 Steal a Brainrot — основная игра в нашем каталоге!\n\nЕсть: Trade Tokens, Lucky Blocks, редкие юниты с мутациями. Всё выдаётся автоматически после оплаты.",
+  },
+  {
+    keywords: ["blade ball", "блейд", "rivals", "ривалс", "blox fruit", "блокс", "escape tsunami", "tsunami"],
+    answer: "🎮 Для игр Blade Ball, Rivals, Blox Fruits и Escape Tsunami — товары передаются через игру вручную.\n\nПосле оплаты открой чат, я добавлю тебя в друзья и передам товар!",
+  },
+  {
+    keywords: ["аккаунт", "логин", "пароль", "вход", "войти", "регистрац"],
+    answer: "👤 На сайте есть личный кабинет — там хранится история твоих заказов и полученные товары.\n\nЗарегистрируйся или войди через кнопку в правом верхнем углу сайта.",
+  },
+  {
+    keywords: ["безопасно", "безопасность", "доверят", "честн", "провер", "надёжн", "отзыв"],
+    answer: "✅ КамбекШОП работает уже давно — более 15 000 продаж!\n\nВсе отзывы можно посмотреть на странице сайта и на EasyDonate. Оплата только после оформления заказа, без предоплаты вслепую.",
+  },
+  {
+    keywords: ["телеграм", "telegram", "контакт", "связаться", "написать", "поддержк"],
+    answer: "📨 Связаться с нами:\n\n• Telegram: @TanksCrypto\n• Email: cambeckshop@gmail.com\n• Этот чат — отвечаем быстро!",
+  },
+  {
+    keywords: ["курс", "доллар", "рубл", "конверт"],
+    answer: "📊 Цены в каталоге автоматически пересчитываются по актуальному курсу ЦБ РФ — обновляется каждые 30 минут.\n\nЦена в рублях которую ты видишь — уже актуальная.",
+  },
+  {
+    keywords: ["сток", "наличи", "есть ли", "в наличии", "осталось", "количество"],
+    answer: "📦 Актуальное наличие товаров обновляется каждую минуту прямо в каталоге.\n\nЕсли товара нет — кнопка будет серой с надписью \"Нет в наличии\". Можешь написать что именно нужно — найду для тебя!",
+  },
+  {
+    keywords: ["привет", "здравствуй", "хай", "hello", "добрый", "приветствую"],
+    answer: "Привет! 👋 Я бот КамбекШОП — помогу ответить на частые вопросы.\n\nСпроси про оплату, товары, сроки или что-то ещё. Если нужен живой оператор — нажми кнопку ниже!",
+  },
+  {
+    keywords: ["спасибо", "благодар", "окей", "ок", "понял", "понятно", "ясно"],
+    answer: "Всегда рад помочь! 😊 Если появятся ещё вопросы — пиши. Удачных покупок!",
+  },
+];
+
+function getBotAnswer(input: string): string | null {
+  const lower = input.toLowerCase();
+  for (const faq of FAQ) {
+    if (faq.keywords.some(kw => lower.includes(kw))) {
+      return faq.answer;
+    }
+  }
+  return null;
+}
+
+let botMsgId = 0;
+function makeBotMsg(text: string): Message {
+  return { id: `bot_${++botMsgId}`, sender: "bot", text, created_at: new Date().toISOString(), isBot: true };
+}
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
@@ -22,13 +98,14 @@ export default function ChatWidget() {
   const [sending, setSending] = useState(false);
   const [visitorName, setVisitorName] = useState("");
   const [nameEntered, setNameEntered] = useState(false);
+  const [operatorRequested, setOperatorRequested] = useState(false);
+  const [botTyping, setBotTyping] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const visitorId = getVisitorId();
 
   useEffect(() => {
     const saved = localStorage.getItem("cambeck_visitor_name");
     if (saved) { setVisitorName(saved); setNameEntered(true); }
-    // Автооткрытие после оплаты не-brainrot товара
     if (localStorage.getItem("cambeck_open_chat") === "1") {
       localStorage.removeItem("cambeck_open_chat");
       setOpen(true);
@@ -44,31 +121,89 @@ export default function ChatWidget() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, botTyping]);
+
+  // Приветствие бота при входе
+  useEffect(() => {
+    if (open && nameEntered && messages.length === 0 && !operatorRequested) {
+      setTimeout(() => {
+        setMessages([makeBotMsg(`Привет, ${visitorName}! 👋 Я бот КамбекШОП — отвечу на частые вопросы мгновенно.\n\nЕсли нужен живой оператор — нажми кнопку «Позвать оператора» под любым моим ответом.`)]);
+      }, 400);
+    }
+  }, [open, nameEntered]);
 
   async function fetchMessages() {
-    const url = chatId
-      ? `${CHAT_URL}?action=messages&chat_id=${chatId}`
-      : `${CHAT_URL}?action=messages`;
-    const res = await fetch(url, { headers: { "X-Visitor-Id": visitorId } });
-    const data = await res.json();
-    if (data.chat_id) setChatId(data.chat_id);
-    if (data.messages) setMessages(data.messages);
+    if (operatorRequested) {
+      const url = chatId
+        ? `${CHAT_URL}?action=messages&chat_id=${chatId}`
+        : `${CHAT_URL}?action=messages`;
+      const res = await fetch(url, { headers: { "X-Visitor-Id": visitorId } });
+      const data = await res.json();
+      if (data.chat_id) setChatId(data.chat_id);
+      if (data.messages) {
+        setMessages(prev => {
+          const botMsgs = prev.filter(m => m.isBot);
+          const realIds = new Set(data.messages.map((m: Message) => m.id));
+          const uniqueBots = botMsgs.filter(m => !realIds.has(m.id));
+          return [...uniqueBots, ...data.messages].sort((a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
+        });
+      }
+    }
+  }
+
+  async function callOperator() {
+    setOperatorRequested(true);
+    setBotTyping(true);
+    setTimeout(async () => {
+      setBotTyping(false);
+      const notifyMsg = `[Бот] Пользователь ${visitorName} запросил оператора`;
+      const res = await fetch(`${CHAT_URL}?action=message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Visitor-Id": visitorId },
+        body: JSON.stringify({ text: notifyMsg, visitor_name: visitorName }),
+      });
+      const data = await res.json();
+      if (data.chat_id) setChatId(data.chat_id);
+      setMessages(prev => [...prev, makeBotMsg("✅ Оператор уже в пути! Обычно отвечаем в течение нескольких минут.\n\nПока ждёшь — можешь написать свой вопрос прямо здесь.")]);
+    }, BOT_DELAY);
   }
 
   async function sendMessage() {
     if (!text.trim() || sending) return;
+    const userText = text.trim();
     setSending(true);
-    const res = await fetch(`${CHAT_URL}?action=message`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Visitor-Id": visitorId },
-      body: JSON.stringify({ text: text.trim(), visitor_name: visitorName }),
-    });
-    const data = await res.json();
-    if (data.chat_id) setChatId(data.chat_id);
     setText("");
-    await fetchMessages();
-    setSending(false);
+
+    const userMsg: Message = { id: `user_${Date.now()}`, sender: "visitor", text: userText, created_at: new Date().toISOString() };
+    setMessages(prev => [...prev, userMsg]);
+
+    if (operatorRequested) {
+      const res = await fetch(`${CHAT_URL}?action=message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Visitor-Id": visitorId },
+        body: JSON.stringify({ text: userText, visitor_name: visitorName }),
+      });
+      const data = await res.json();
+      if (data.chat_id) setChatId(data.chat_id);
+      await fetchMessages();
+      setSending(false);
+      return;
+    }
+
+    // Бот отвечает
+    setBotTyping(true);
+    const answer = getBotAnswer(userText);
+    setTimeout(() => {
+      setBotTyping(false);
+      if (answer) {
+        setMessages(prev => [...prev, makeBotMsg(answer)]);
+      } else {
+        setMessages(prev => [...prev, makeBotMsg("Хм, не совсем понял вопрос 🤔\n\nМогу позвать живого оператора — он точно поможет!")]);
+      }
+      setSending(false);
+    }, BOT_DELAY);
   }
 
   function handleNameSubmit() {
@@ -77,9 +212,10 @@ export default function ChatWidget() {
     setNameEntered(true);
   }
 
+  const hasRealOperatorMessages = messages.some(m => m.sender === "admin");
+
   return (
     <>
-      {/* Кнопка открытия */}
       <button
         onClick={() => setOpen(!open)}
         className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all hover:scale-110 animate-pulse-glow"
@@ -88,28 +224,28 @@ export default function ChatWidget() {
         <Icon name={open ? "X" : "MessageCircle"} size={24} />
       </button>
 
-      {/* Чат окно */}
       {open && (
         <div
           className="fixed bottom-24 right-6 z-50 w-80 rounded-2xl flex flex-col overflow-hidden animate-bounce-in"
-          style={{ background: "#161F2C", border: "1px solid rgba(0,102,255,0.3)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)", height: "420px" }}
+          style={{ background: "#161F2C", border: "1px solid rgba(0,102,255,0.3)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)", height: "460px" }}
         >
           {/* Header */}
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-white/5"
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-white/5 flex-shrink-0"
             style={{ background: "linear-gradient(135deg, #0066FF22, #0044BB22)" }}>
             <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm"
               style={{ background: "linear-gradient(135deg, #0066FF, #E8343A)" }}>C</div>
             <div>
-              <div className="font-display font-bold text-white text-sm">CambeckSHOP</div>
+              <div className="font-display font-bold text-white text-sm">КамбекШОП</div>
               <div className="flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
-                <span className="text-xs text-white/40">Поддержка онлайн</span>
+                <span className="text-xs text-white/40">
+                  {operatorRequested && hasRealOperatorMessages ? "Оператор онлайн" : operatorRequested ? "Ожидаем оператора..." : "Бот поддержки"}
+                </span>
               </div>
             </div>
           </div>
 
           {!nameEntered ? (
-            /* Ввод имени */
             <div className="flex flex-col items-center justify-center flex-1 px-5 gap-4">
               <div className="text-3xl">👋</div>
               <p className="font-body text-white/70 text-sm text-center">Как вас зовут? Мы ответим быстро!</p>
@@ -131,41 +267,64 @@ export default function ChatWidget() {
             </div>
           ) : (
             <>
-              {/* Сообщения */}
               <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2">
-                {messages.length === 0 && (
-                  <div className="text-center text-white/30 text-xs mt-8">
-                    Напишите вопрос — мы ответим как можно скорее 🎮
-                  </div>
-                )}
-                {messages.map(msg => (
-                  <div key={msg.id} className={`flex ${msg.sender === "visitor" ? "justify-end" : "justify-start"}`}>
-                    <div
-                      className="max-w-[75%] px-3 py-2 rounded-xl font-body text-sm leading-relaxed"
-                      style={{
-                        background: msg.sender === "visitor"
-                          ? "linear-gradient(135deg, #0066FF, #0044BB)"
-                          : "rgba(255,255,255,0.08)",
-                        color: "white",
-                        borderRadius: msg.sender === "visitor" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-                      }}
-                    >
-                      {msg.sender === "admin" && (
-                        <div className="text-xs font-bold mb-1" style={{ color: "#FFB800" }}>CambeckSHOP</div>
-                      )}
-                      {msg.text}
+                {messages.map((msg, idx) => (
+                  <div key={msg.id}>
+                    <div className={`flex ${msg.sender === "visitor" ? "justify-end" : "justify-start"}`}>
+                      <div
+                        className="max-w-[78%] px-3 py-2 font-body text-sm leading-relaxed whitespace-pre-wrap"
+                        style={{
+                          background: msg.sender === "visitor"
+                            ? "linear-gradient(135deg, #0066FF, #0044BB)"
+                            : msg.sender === "admin"
+                            ? "rgba(255,184,0,0.12)"
+                            : "rgba(255,255,255,0.08)",
+                          color: "white",
+                          borderRadius: msg.sender === "visitor" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                        }}
+                      >
+                        {(msg.sender === "bot" || msg.sender === "admin") && (
+                          <div className="text-xs font-bold mb-1" style={{ color: msg.sender === "admin" ? "#FFB800" : "#4DA6FF" }}>
+                            {msg.sender === "admin" ? "👤 Оператор" : "🤖 Бот"}
+                          </div>
+                        )}
+                        {msg.text}
+                      </div>
                     </div>
+                    {/* Кнопка "Позвать оператора" после каждого ответа бота */}
+                    {msg.sender === "bot" && !operatorRequested && idx === messages.length - 1 && (
+                      <div className="flex justify-start mt-1 ml-1">
+                        <button
+                          onClick={callOperator}
+                          className="text-xs font-body px-3 py-1.5 rounded-lg transition-all hover:scale-105"
+                          style={{ background: "rgba(255,184,0,0.12)", color: "#FFB800", border: "1px solid rgba(255,184,0,0.2)" }}
+                        >
+                          👤 Позвать оператора
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
+
+                {/* Индикатор печати бота */}
+                {botTyping && (
+                  <div className="flex justify-start">
+                    <div className="px-4 py-3 rounded-2xl rounded-bl-sm flex gap-1 items-center"
+                      style={{ background: "rgba(255,255,255,0.08)" }}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-white/40 animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-white/40 animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-white/40 animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </div>
+                  </div>
+                )}
                 <div ref={bottomRef} />
               </div>
 
-              {/* Ввод */}
-              <div className="px-3 py-3 border-t border-white/5 flex gap-2">
+              <div className="px-3 py-3 border-t border-white/5 flex gap-2 flex-shrink-0">
                 <input
                   className="flex-1 px-3 py-2 rounded-xl font-body text-sm text-white outline-none"
                   style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
-                  placeholder="Ваш вопрос..."
+                  placeholder={operatorRequested ? "Напишите оператору..." : "Задайте вопрос..."}
                   value={text}
                   onChange={e => setText(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && sendMessage()}
