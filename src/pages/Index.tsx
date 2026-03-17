@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Icon from "@/components/ui/icon";
 import BuyModal from "@/components/BuyModal";
 
@@ -46,6 +47,7 @@ function CatalogCard({ item }: { item: CatalogItem }) {
   const [open, setOpen] = useState(false);
 
   function handleBuy() {
+    console.log("BUY CLICKED:", item.name, "inStock:", inStock);
     setOpen(true);
   }
 
@@ -127,25 +129,9 @@ function CatalogCard({ item }: { item: CatalogItem }) {
         </div>
       </div>
 
-      {open && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 9999,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "16px",
-            background: "rgba(0,0,0,0.75)",
-            backdropFilter: "blur(8px)",
-          }}
-          onClick={() => setOpen(false)}
-        >
-          <div onClick={e => e.stopPropagation()}>
-            <BuyModal item={item} onClose={() => setOpen(false)} />
-          </div>
-        </div>
+      {open && createPortal(
+        <BuyModal item={item} onClose={() => setOpen(false)} />,
+        document.body
       )}
     </>
   );
