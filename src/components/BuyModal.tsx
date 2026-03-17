@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 
 const ORDERS_URL = "https://functions.poehali.dev/f852d147-eae1-4265-a94d-63d014c42231";
 const ROBOKASSA_URL = "https://functions.poehali.dev/60d8dcc0-3354-4a73-9c86-1698efc497c7";
-const USD_TO_RUB = 90;
+const USD_TO_RUB = 81.91;
 
 const NETWORKS = [
   { id: "LTC",      label: "LTC (Litecoin)",     icon: "Ł", color: "#A8A9AD" },
@@ -181,9 +181,9 @@ export default function BuyModal({ item, onClose }: Props) {
             <span className="font-body text-white/50 text-sm">Итого</span>
             <div className="text-right">
               <span className="font-display font-bold text-xl" style={{ color: "#4DA6FF" }}>
-                ${totalUsd}
+                {totalRub} ₽
               </span>
-              <span className="font-body text-white/30 text-xs ml-2">≈ {totalRub} ₽</span>
+              <span className="font-body text-white/30 text-xs ml-2">≈ ${totalUsd}</span>
             </div>
           </div>
 

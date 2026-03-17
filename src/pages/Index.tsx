@@ -10,7 +10,7 @@ const ORDERS_URL = "https://functions.poehali.dev/f852d147-eae1-4265-a94d-63d014
 const HERO_IMG = "https://cdn.poehali.dev/projects/55eebfd7-5c19-4adf-ae5d-100fe458b847/files/063fb226-d199-4cc0-8b87-e4836625f644.jpg";
 const ITEMS_IMG = "https://cdn.poehali.dev/projects/55eebfd7-5c19-4adf-ae5d-100fe458b847/files/34974bc9-8d1b-47ea-a085-b096136f7c56.jpg";
 
-const USD_TO_RUB = 90;
+const USD_TO_RUB = 81.91;
 
 type CatalogItem = {
   id: number;
@@ -187,9 +187,9 @@ function CatalogCard({ item }: { item: CatalogItem }) {
         <div className="flex items-center justify-between">
           <div>
             <div className="font-display font-bold text-xl" style={{ color: "#4DA6FF" }}>
-              💸 ${item.priceUsd.toFixed(2)}
+              💸 {priceRub} ₽
             </div>
-            <div className="font-body text-xs text-white/40 mt-0.5">≈ {priceRub} ₽</div>
+            <div className="font-body text-xs text-white/40 mt-0.5">≈ ${item.priceUsd.toFixed(2)}</div>
           </div>
           {inStock ? (
             <button
