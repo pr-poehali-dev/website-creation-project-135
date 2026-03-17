@@ -38,8 +38,10 @@ export default function Pay() {
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedAmount, setCopiedAmount] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(1800);
   const [expired, setExpired] = useState(false);
+  const [cryptoRate, setCryptoRate] = useState<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -48,6 +50,45 @@ export default function Pay() {
     const interval = setInterval(fetchStatus, 15000);
     return () => clearInterval(interval);
   }, [orderId]);
+
+  useEffect(() => {
+    if (!order) return;
+    fetchRate(order.network);
+    // Обновляем курс каждые 2 минуты
+    const interval = setInterval(() => fetchRate(order.network), 120000);
+    return () => clearInterval(interval);
+  }, [order?.network]);
+
+  async function fetchRate(network: string) {
+    const coinIds: Record<string, string> = {
+      LTC: "litecoin",
+      SOL: "solana",
+    };
+    const coinId = coinIds[network];
+    if (!coinId) return; // USDT = 1:1, курс не нужен
+    try {
+      const res = await fetch(
+        `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd`
+      );
+      const data = await res.json();
+      const price = data[coinId]?.usd;
+      if (price) setCryptoRate(price);
+    } catch {
+      // ignore
+    }
+  }
+
+  function getCryptoAmount(): string | null {
+    if (!order) return null;
+    if (order.network === "USDT_BEP" || order.network === "USDT_TRC") {
+      return order.amount_usd.toFixed(2) + " USDT";
+    }
+    if (!cryptoRate) return null;
+    const amount = order.amount_usd / cryptoRate;
+    if (order.network === "LTC") return amount.toFixed(6) + " LTC";
+    if (order.network === "SOL") return amount.toFixed(4) + " SOL";
+    return null;
+  }
 
   useEffect(() => {
     if (!order || order.status === "paid") return;
@@ -221,15 +262,49 @@ export default function Pay() {
             </span>
           </div>
 
-          {/* Сеть */}
+          {/* Сеть + сумма в крипте */}
           <div className="px-5 py-4 border-b border-white/5">
-            <p className="font-body text-white/50 text-xs mb-2">Сеть оплаты</p>
-            <div className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm"
-                style={{ background: `${netColor}22`, color: netColor }}>
-                {NETWORK_ICONS[order.network] || "₿"}
-              </span>
-              <span className="font-body font-bold text-white">{order.network_label}</span>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-body text-white/50 text-xs mb-2">Сеть оплаты</p>
+                <div className="flex items-center gap-2">
+                  <span className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm"
+                    style={{ background: `${netColor}22`, color: netColor }}>
+                    {NETWORK_ICONS[order.network] || "₿"}
+                  </span>
+                  <span className="font-body font-bold text-white">{order.network_label}</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="font-body text-white/50 text-xs mb-1">Отправить</p>
+                {getCryptoAmount() ? (
+                  <div className="flex items-center gap-1 justify-end">
+                    <span className="font-display font-bold text-lg" style={{ color: netColor }}>
+                      {getCryptoAmount()}
+                    </span>
+                    <button
+                      onClick={() => {
+                        const amt = getCryptoAmount();
+                        if (amt) {
+                          navigator.clipboard.writeText(amt.split(" ")[0]);
+                          setCopiedAmount(true);
+                          setTimeout(() => setCopiedAmount(false), 2000);
+                        }
+                      }}
+                      className="w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white transition-colors"
+                    >
+                      <Icon name={copiedAmount ? "Check" : "Copy"} size={12} />
+                    </button>
+                  </div>
+                ) : (
+                  <span className="font-body text-white/30 text-xs animate-pulse">загрузка курса...</span>
+                )}
+                {cryptoRate && (order.network === "LTC" || order.network === "SOL") && (
+                  <p className="font-body text-white/25 text-xs mt-0.5">
+                    1 {order.network} = ${cryptoRate.toLocaleString("en")}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -256,8 +331,12 @@ export default function Pay() {
           <div className="px-5 py-4 border-b border-white/5">
             <p className="font-body text-white/40 text-xs leading-relaxed">
               1. Скопируй адрес выше<br />
-              2. Отправь ровно <b className="text-white">${order.amount_usd.toFixed(2)}</b> в сети <b className="text-white">{order.network_label}</b><br />
-              3. Нажми «Я оплатил» — система автоматически проверит блокчейн и выдаст товар
+              2. Отправь ровно{" "}
+              <b className="text-white">
+                {getCryptoAmount() ?? `$${order.amount_usd.toFixed(2)}`}
+              </b>{" "}
+              в сети <b className="text-white">{order.network_label}</b><br />
+              3. Нажми «Я оплатил» — система проверит блокчейн и выдаст товар
             </p>
           </div>
 
