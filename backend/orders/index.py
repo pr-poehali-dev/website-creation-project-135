@@ -275,9 +275,14 @@ def handler(event: dict, context) -> dict:
         total_usd = float(price_usd) * quantity
         user_id = get_user_id_from_token(conn, auth_token)
 
+        # Получаем актуальный курс на момент создания заказа
+        cur.execute(f"SELECT value FROM {schema}.settings WHERE key = 'usd_rate'")
+        rate_row = cur.fetchone()
+        current_usd_rate = float(rate_row[0]) if rate_row else 81.91
+
         cur.execute(
-            f"INSERT INTO {schema}.orders (item_id, item_name, price_usd, quantity, crypto_network, crypto_address, status, user_id, game) VALUES (%s, %s, %s, %s, %s, %s, 'pending', %s, %s) RETURNING id, created_at",
-            (item_id, item_name, total_usd, quantity, network, address, user_id, game)
+            f"INSERT INTO {schema}.orders (item_id, item_name, price_usd, quantity, crypto_network, crypto_address, status, user_id, game, usd_rate) VALUES (%s, %s, %s, %s, %s, %s, 'pending', %s, %s, %s) RETURNING id, created_at",
+            (item_id, item_name, total_usd, quantity, network, address, user_id, game, current_usd_rate)
         )
         order_id, created_at = cur.fetchone()
         conn.commit()
@@ -289,6 +294,8 @@ def handler(event: dict, context) -> dict:
             "network": network,
             "network_label": CRYPTO_LABELS[network],
             "amount_usd": total_usd,
+            "amount_rub": round(total_usd * current_usd_rate, 2),
+            "usd_rate": current_usd_rate,
             "item_name": item_name,
             "quantity": quantity,
             "created_at": created_at,
