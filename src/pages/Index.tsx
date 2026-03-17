@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Icon from "@/components/ui/icon";
+import BuyModal from "@/components/BuyModal";
 
 const HERO_IMG = "https://cdn.poehali.dev/projects/55eebfd7-5c19-4adf-ae5d-100fe458b847/files/063fb226-d199-4cc0-8b87-e4836625f644.jpg";
 const ITEMS_IMG = "https://cdn.poehali.dev/projects/55eebfd7-5c19-4adf-ae5d-100fe458b847/files/34974bc9-8d1b-47ea-a085-b096136f7c56.jpg";
@@ -42,10 +44,11 @@ const sections = ["Главная", "Каталог", "Отзывы", "Подд�
 function CatalogCard({ item }: { item: CatalogItem }) {
   const inStock = item.stock > 0;
   const priceRub = Math.ceil(item.priceUsd * USD_TO_RUB);
+  const [showBuy, setShowBuy] = useState(false);
 
   return (
     <div
-      className="hover-lift rounded-2xl p-5 cursor-pointer transition-all duration-300"
+      className="hover-lift rounded-2xl p-5 transition-all duration-300"
       style={{
         background: "rgba(22, 31, 44, 0.9)",
         border: `1px solid ${inStock ? "rgba(0,176,111,0.2)" : "rgba(255,255,255,0.05)"}`,
@@ -76,6 +79,7 @@ function CatalogCard({ item }: { item: CatalogItem }) {
           <div className="font-body text-xs text-white/40 mt-0.5">≈ {priceRub} ₽</div>
         </div>
         <button
+          onClick={() => inStock && setShowBuy(true)}
           className="btn-shimmer px-4 py-2 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
           disabled={!inStock}
           style={{ background: inStock ? "linear-gradient(135deg, #0066FF, #0044BB)" : "rgba(255,255,255,0.08)" }}
@@ -83,6 +87,11 @@ function CatalogCard({ item }: { item: CatalogItem }) {
           {inStock ? "Купить" : "Ждать"}
         </button>
       </div>
+
+      {showBuy && createPortal(
+        <BuyModal item={item} onClose={() => setShowBuy(false)} />,
+        document.body
+      )}
     </div>
   );
 }
