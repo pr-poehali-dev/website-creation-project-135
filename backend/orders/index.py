@@ -708,4 +708,40 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return ok({"success": True})
 
+    # GET usd_rate — актуальный курс доллара (с кэшем 30 мин в БД)
+    if method == "GET" and action == "usd_rate":
+        schema = os.environ.get("MAIN_DB_SCHEMA", "public")
+        conn = get_conn()
+        cur = conn.cursor()
+        # Проверяем кэш — если обновляли менее 30 минут назад, отдаём из БД
+        cur.execute(f"SELECT value, updated_at FROM {schema}.settings WHERE key = 'usd_rate'")
+        row = cur.fetchone()
+        import datetime
+        now = datetime.datetime.utcnow()
+        if row:
+            cached_rate = float(row[0])
+            updated_at = row[1]
+            if updated_at and (now - updated_at.replace(tzinfo=None)).total_seconds() < 1800:
+                conn.close()
+                return ok({"rate": cached_rate, "cached": True})
+        # Кэш устарел — запрашиваем у ЦБ РФ
+        try:
+            cbr_url = "https://www.cbr-xml-daily.ru/daily_json.js"
+            r = requests.get(cbr_url, timeout=8)
+            data = r.json()
+            usd_rate = float(data["Valute"]["USD"]["Value"])
+            # Сохраняем в БД
+            cur.execute(
+                f"INSERT INTO {schema}.settings (key, value, updated_at) VALUES ('usd_rate', %s, NOW()) "
+                f"ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()",
+                (str(usd_rate),)
+            )
+            conn.commit()
+            conn.close()
+            return ok({"rate": usd_rate, "cached": False})
+        except Exception:
+            conn.close()
+            fallback = cached_rate if row else 81.91
+            return ok({"rate": fallback, "cached": True})
+
     return err("Неизвестный action", 404)

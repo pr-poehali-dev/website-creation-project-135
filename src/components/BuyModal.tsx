@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 import { useAuth } from "@/context/AuthContext";
 
 const ORDERS_URL = "https://functions.poehali.dev/f852d147-eae1-4265-a94d-63d014c42231";
 const ROBOKASSA_URL = "https://functions.poehali.dev/60d8dcc0-3354-4a73-9c86-1698efc497c7";
-const USD_TO_RUB = 81.91;
+const USD_TO_RUB_DEFAULT = 81.91;
 
 const NETWORKS = [
   { id: "LTC",      label: "LTC (Litecoin)",     icon: "Ł", color: "#A8A9AD" },
@@ -35,10 +35,18 @@ export default function BuyModal({ item, onClose }: Props) {
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [usdRate, setUsdRate] = useState(USD_TO_RUB_DEFAULT);
+
+  useEffect(() => {
+    fetch(`${ORDERS_URL}?action=usd_rate`)
+      .then(r => r.json())
+      .then(d => { if (d.rate) setUsdRate(d.rate); })
+      .catch(() => {});
+  }, []);
 
   const maxQty = Math.min(item.stock, 9999);
   const totalUsd = (item.priceUsd * quantity).toFixed(2);
-  const totalRub = Math.ceil(item.priceUsd * quantity * USD_TO_RUB);
+  const totalRub = Math.ceil(item.priceUsd * quantity * usdRate);
 
   async function payByCard() {
     setLoading(true);
@@ -54,7 +62,7 @@ export default function BuyModal({ item, onClose }: Props) {
           item_name: item.name,
           price_usd: item.priceUsd,
           quantity,
-          usd_to_rub: USD_TO_RUB,
+          usd_to_rub: usdRate,
         }),
       });
       if (!res.ok) {

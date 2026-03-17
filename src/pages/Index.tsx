@@ -10,7 +10,7 @@ const ORDERS_URL = "https://functions.poehali.dev/f852d147-eae1-4265-a94d-63d014
 const HERO_IMG = "https://cdn.poehali.dev/projects/55eebfd7-5c19-4adf-ae5d-100fe458b847/files/063fb226-d199-4cc0-8b87-e4836625f644.jpg";
 const ITEMS_IMG = "https://cdn.poehali.dev/projects/55eebfd7-5c19-4adf-ae5d-100fe458b847/files/34974bc9-8d1b-47ea-a085-b096136f7c56.jpg";
 
-const USD_TO_RUB = 81.91;
+const USD_TO_RUB_DEFAULT = 81.91;
 
 type CatalogItem = {
   id: number;
@@ -148,9 +148,9 @@ const reviews = [
 
 const sections = ["Главная", "Каталог", "Отзывы", "Поддержка"];
 
-function CatalogCard({ item }: { item: CatalogItem }) {
+function CatalogCard({ item, usdRate = USD_TO_RUB_DEFAULT }: { item: CatalogItem; usdRate?: number }) {
   const inStock = item.stock > 0;
-  const priceRub = Math.ceil(item.priceUsd * USD_TO_RUB);
+  const priceRub = Math.ceil(item.priceUsd * usdRate);
   const [open, setOpen] = useState(false);
 
   function handleBuy() {
@@ -255,11 +255,19 @@ export default function Index() {
   const [dbStock, setDbStock] = useState<Record<string, number>>({});
   const [dbCatalog, setDbCatalog] = useState<CatalogItem[]>([]);
   const [dbGames, setDbGames] = useState<Game[]>([]);
+  const [usdRate, setUsdRate] = useState(USD_TO_RUB_DEFAULT);
   const [reviewsExpanded, setReviewsExpanded] = useState(false);
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
 
   useEffect(() => {
     setLoaded(true);
+
+    function loadUsdRate() {
+      fetch(`${ORDERS_URL}?action=usd_rate`)
+        .then(r => r.json())
+        .then(d => { if (d.rate) setUsdRate(d.rate); })
+        .catch(() => {});
+    }
 
     function loadGames() {
       fetch(`${ORDERS_URL}?action=games`)
@@ -301,14 +309,16 @@ export default function Index() {
         .catch(() => {});
     }
 
+    loadUsdRate();
     loadGames();
     loadCatalog();
     loadPrices();
     loadStock();
 
-    // Обновляем остатки каждые 60 секунд
-    const interval = setInterval(loadStock, 60000);
-    return () => clearInterval(interval);
+    // Обновляем остатки каждые 60 секунд, курс — каждые 30 минут
+    const stockInterval = setInterval(loadStock, 60000);
+    const rateInterval = setInterval(loadUsdRate, 30 * 60 * 1000);
+    return () => { clearInterval(stockInterval); clearInterval(rateInterval); };
   }, []);
 
   const scrollTo = (id: string) => {
@@ -571,7 +581,7 @@ export default function Index() {
               <div className="mb-10">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {(dbCatalog.length > 0 ? dbCatalog : catalogItems).filter(i => i.game === selectedGame).map((item) => (
-                    <CatalogCard key={item.id} item={{
+                    <CatalogCard key={item.id} usdRate={usdRate} item={{
                       ...item,
                       priceUsd: dbPrices[String(item.id)] ?? item.priceUsd,
                       stock: dbStock[String(item.id)] ?? item.stock,
