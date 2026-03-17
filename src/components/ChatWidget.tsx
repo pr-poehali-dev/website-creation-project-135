@@ -4,6 +4,7 @@ import Icon from "@/components/ui/icon";
 
 const CHAT_URL = "https://functions.poehali.dev/5dc1e3a3-dd70-49b6-a971-dd798391a238";
 const ORDERS_URL = "https://functions.poehali.dev/f852d147-eae1-4265-a94d-63d014c42231";
+const AUTH_URL = "https://functions.poehali.dev/4d9f59a5-cbc5-418a-bb2f-849af25b8236";
 
 function getVisitorId() {
   let id = localStorage.getItem("cambeck_visitor_id");
@@ -16,6 +17,7 @@ function getVisitorId() {
 
 type Message = { id: string; sender: string; text: string; created_at: string; isBot?: boolean };
 type PendingOrder = { order_id: string; item_name: string; amount_usd: number; created_at: string };
+type ServerOrder = { order_id: string; item_name: string; amount_usd: number; quantity: number; network: string; status: string; created_at: string };
 
 const BOT_DELAY = 700;
 
@@ -63,6 +65,7 @@ export default function ChatWidget() {
   const [pendingOrder, setPendingOrder] = useState<PendingOrder | null>(null);
   const [orderStatus, setOrderStatus] = useState<string | null>(null);
   const [orderLoading, setOrderLoading] = useState(false);
+  const [serverOrders, setServerOrders] = useState<ServerOrder[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const visitorId = getVisitorId();
 
@@ -80,6 +83,13 @@ export default function ChatWidget() {
       try { setPendingOrder(JSON.parse(raw)); } catch { /* ignore */ }
     }
   }, []);
+
+  // Загружаем заказы с сервера при открытии вкладки Заказы
+  useEffect(() => {
+    if (open && activeTab === "orders") {
+      fetchServerOrders();
+    }
+  }, [open, activeTab]);
 
   // Обновляем статус заказа каждые 15 сек если панель открыта
   useEffect(() => {
@@ -107,6 +117,22 @@ export default function ChatWidget() {
       }, 400);
     }
   }, [open, nameEntered, activeTab]);
+
+  async function fetchServerOrders() {
+    const authToken = localStorage.getItem("cambeck_token");
+    if (!authToken) return;
+    setOrderLoading(true);
+    try {
+      const res = await fetch(`${AUTH_URL}?action=me`, {
+        headers: { "X-Auth-Token": authToken },
+      });
+      const data = await res.json();
+      if (data.orders) {
+        setServerOrders(data.orders.filter((o: ServerOrder) => o.status === "pending"));
+      }
+    } catch { /* ignore */ }
+    setOrderLoading(false);
+  }
 
   async function checkOrderStatus() {
     if (!pendingOrder) return;
@@ -209,8 +235,10 @@ export default function ChatWidget() {
         style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}
       >
         <Icon name={open ? "X" : "MessageCircle"} size={24} />
-        {pendingOrder && !open && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center text-xs font-bold text-black">1</span>
+        {(pendingOrder || serverOrders.length > 0) && !open && (
+          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center text-xs font-bold text-black">
+            {serverOrders.length + (pendingOrder ? 1 : 0)}
+          </span>
         )}
       </button>
 
@@ -244,73 +272,121 @@ export default function ChatWidget() {
           </div>
 
           {/* Вкладки */}
-          <div className="flex border-b border-white/5 flex-shrink-0">
-            {[
-              { id: "chat", label: "💬 Чат", badge: null },
-              { id: "orders", label: "📦 Заказы", badge: pendingOrder ? 1 : null },
-            ].map(t => (
-              <button key={t.id} onClick={() => setActiveTab(t.id as "chat" | "orders")}
-                className="flex-1 py-2.5 font-body text-sm font-bold relative transition-all"
-                style={{
-                  color: activeTab === t.id ? "#4DA6FF" : "rgba(255,255,255,0.35)",
-                  borderBottom: activeTab === t.id ? "2px solid #0066FF" : "2px solid transparent",
-                }}>
-                {t.label}
-                {t.badge && (
-                  <span className="absolute top-1.5 right-6 w-4 h-4 rounded-full bg-yellow-400 text-xs font-bold text-black flex items-center justify-center">{t.badge}</span>
-                )}
-              </button>
-            ))}
-          </div>
+          {(() => {
+            const totalPending = serverOrders.length + (pendingOrder ? 1 : 0);
+            return (
+              <div className="flex border-b border-white/5 flex-shrink-0">
+                {[
+                  { id: "chat", label: "💬 Чат", badge: null },
+                  { id: "orders", label: "📦 Заказы", badge: totalPending > 0 ? totalPending : null },
+                ].map(t => (
+                  <button key={t.id} onClick={() => setActiveTab(t.id as "chat" | "orders")}
+                    className="flex-1 py-2.5 font-body text-sm font-bold relative transition-all"
+                    style={{
+                      color: activeTab === t.id ? "#4DA6FF" : "rgba(255,255,255,0.35)",
+                      borderBottom: activeTab === t.id ? "2px solid #0066FF" : "2px solid transparent",
+                    }}>
+                    {t.label}
+                    {t.badge && (
+                      <span className="absolute top-1.5 right-6 w-4 h-4 rounded-full bg-yellow-400 text-xs font-bold text-black flex items-center justify-center">{t.badge}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
 
           {/* ===== ВКЛАДКА ЗАКАЗЫ ===== */}
           {activeTab === "orders" && (
             <div className="flex-1 overflow-y-auto px-4 py-4">
-              {!pendingOrder ? (
+              {orderLoading && serverOrders.length === 0 && !pendingOrder && (
+                <div className="flex justify-center py-8">
+                  <div className="w-6 h-6 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                </div>
+              )}
+
+              {!orderLoading && serverOrders.length === 0 && !pendingOrder && (
                 <div className="flex flex-col items-center justify-center h-full gap-3 text-center py-10">
                   <div className="text-4xl">📭</div>
                   <p className="font-body text-white/50 text-sm">Активных заказов нет</p>
-                  <p className="font-body text-white/30 text-xs">Здесь появятся заказы ожидающие оплаты</p>
+                  <p className="font-body text-white/30 text-xs">Здесь появятся заказы, ожидающие оплаты</p>
+                  {!localStorage.getItem("cambeck_token") && (
+                    <Link to="/login" onClick={() => setOpen(false)}
+                      className="mt-2 px-4 py-2 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
+                      style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
+                      Войти в аккаунт
+                    </Link>
+                  )}
                 </div>
-              ) : (
-                <div className="flex flex-col gap-3">
+              )}
+
+              <div className="flex flex-col gap-3">
+                {/* Заказы с сервера */}
+                {serverOrders.map(order => {
+                  const age = Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000);
+                  return (
+                    <div key={order.order_id} className="rounded-2xl p-4" style={{ background: "rgba(255,184,0,0.08)", border: "1px solid rgba(255,184,0,0.2)" }}>
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <div className="font-body font-bold text-white text-sm">{order.item_name} × {order.quantity}</div>
+                          <div className="font-display font-bold text-base mt-0.5" style={{ color: "#4DA6FF" }}>${order.amount_usd?.toFixed(2)}</div>
+                        </div>
+                        <span className="px-2 py-1 rounded-lg font-body font-bold text-xs flex-shrink-0"
+                          style={{ background: "rgba(255,184,0,0.15)", color: "#FFB800" }}>
+                          ⏳ Ожидает
+                        </span>
+                      </div>
+                      <div className="font-body text-white/30 text-xs mb-3">
+                        {order.network} • {age < 1 ? "только что" : `${age} мин назад`}
+                      </div>
+                      <Link
+                        to={`/pay?order_id=${order.order_id}`}
+                        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
+                        style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}
+                        onClick={() => setOpen(false)}>
+                        <Icon name="CreditCard" size={15} />
+                        Перейти к оплате
+                      </Link>
+                    </div>
+                  );
+                })}
+
+                {/* Заказ из localStorage (если не авторизован) */}
+                {pendingOrder && !serverOrders.find(o => o.order_id === pendingOrder.order_id) && (
                   <div className="rounded-2xl p-4" style={{ background: "rgba(255,184,0,0.08)", border: "1px solid rgba(255,184,0,0.2)" }}>
-                    <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-start justify-between mb-2">
                       <div>
                         <div className="font-body font-bold text-white text-sm">{pendingOrder.item_name}</div>
                         <div className="font-display font-bold text-base mt-0.5" style={{ color: "#4DA6FF" }}>${pendingOrder.amount_usd?.toFixed(2)}</div>
                       </div>
-                      <span className="px-2 py-1 rounded-lg font-body font-bold text-xs"
-                        style={{ background: "rgba(255,184,0,0.15)", color: "#FFB800" }}>
-                        ⏳ Ожидает оплаты
-                      </span>
+                      <span className="px-2 py-1 rounded-lg font-body font-bold text-xs flex-shrink-0"
+                        style={{ background: "rgba(255,184,0,0.15)", color: "#FFB800" }}>⏳ Ожидает</span>
                     </div>
-                    <div className="font-body text-white/30 text-xs mb-4">
-                      Создан {orderAge < 1 ? "только что" : `${orderAge} мин назад`}
+                    <div className="font-body text-white/30 text-xs mb-3">
+                      {orderAge < 1 ? "только что" : `${orderAge} мин назад`}
                     </div>
                     <Link
                       to={`/pay?order_id=${pendingOrder.order_id}`}
-                      className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
+                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
                       style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}
-                      onClick={() => setOpen(false)}
-                    >
+                      onClick={() => setOpen(false)}>
                       <Icon name="CreditCard" size={15} />
                       Перейти к оплате
                     </Link>
                     <button
                       onClick={() => { localStorage.removeItem("cambeck_pending_order"); setPendingOrder(null); }}
-                      className="w-full mt-2 py-2 font-body text-xs text-white/30 hover:text-white/60 transition-colors"
-                    >
+                      className="w-full mt-2 py-2 font-body text-xs text-white/30 hover:text-white/60 transition-colors">
                       Отменить заказ
                     </button>
-                    {orderLoading && <p className="text-center text-white/20 text-xs mt-2">Проверяем статус...</p>}
                   </div>
+                )}
 
+                {(serverOrders.length > 0 || pendingOrder) && (
                   <div className="rounded-xl p-3 text-center" style={{ background: "rgba(0,102,255,0.07)", border: "1px solid rgba(0,102,255,0.15)" }}>
-                    <p className="font-body text-white/40 text-xs">Если оплатил — перейди по ссылке и нажми «Я оплатил»</p>
+                    <p className="font-body text-white/40 text-xs">Перейди по ссылке и нажми «Я оплатил» после оплаты</p>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
 
