@@ -570,7 +570,7 @@ export default function Index() {
               {/* Товары */}
               <div className="mb-10">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {(dbCatalog.length > 0 ? dbCatalog : catalogItems).filter(i => i.game === selectedGame && i.category === "lucky").map((item) => (
+                  {(dbCatalog.length > 0 ? dbCatalog : catalogItems).filter(i => i.game === selectedGame).map((item) => (
                     <CatalogCard key={item.id} item={{
                       ...item,
                       priceUsd: dbPrices[String(item.id)] ?? item.priceUsd,
