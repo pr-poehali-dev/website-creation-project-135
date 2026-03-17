@@ -48,7 +48,7 @@ function CatalogCard({ item }: { item: CatalogItem }) {
 
   return (
     <div
-      className="hover-lift rounded-2xl p-5 transition-all duration-300"
+      className="rounded-2xl p-5"
       style={{
         background: "rgba(22, 31, 44, 0.9)",
         border: `1px solid ${inStock ? "rgba(0,176,111,0.2)" : "rgba(255,255,255,0.05)"}`,
@@ -79,14 +79,21 @@ function CatalogCard({ item }: { item: CatalogItem }) {
           <div className="font-body text-xs text-white/40 mt-0.5">≈ {priceRub} ₽</div>
         </div>
         <button
-          onClick={() => inStock && setShowBuy(true)}
-          className="btn-shimmer px-5 py-3 rounded-xl font-body font-bold text-sm text-white transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (inStock) setShowBuy(true); }}
+          onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); if (inStock) setShowBuy(true); }}
+          className="btn-shimmer font-body font-bold text-sm text-white disabled:opacity-40"
           disabled={!inStock}
           style={{
             background: inStock ? "linear-gradient(135deg, #0066FF, #0044BB)" : "rgba(255,255,255,0.08)",
-            minWidth: "80px",
+            borderRadius: "12px",
+            padding: "12px 20px",
+            minWidth: "84px",
+            minHeight: "44px",
             touchAction: "manipulation",
             WebkitTapHighlightColor: "transparent",
+            cursor: inStock ? "pointer" : "default",
+            border: "none",
+            display: "block",
           }}
         >
           {inStock ? "Купить" : "Ждать"}
