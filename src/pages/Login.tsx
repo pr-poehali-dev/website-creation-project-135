@@ -12,9 +12,17 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  const isEmail = loginVal.includes("@");
+  const emailValid = !isEmail || loginVal === "" || emailRegex.test(loginVal);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (isEmail && !emailRegex.test(loginVal)) {
+      setError("Некорректный формат email. Пример: example@gmail.com");
+      return;
+    }
     setLoading(true);
     const err = await login(loginVal, password);
     setLoading(false);
@@ -50,15 +58,30 @@ export default function Login() {
 
           <div>
             <label className="font-body text-white/50 text-xs mb-1.5 block">Email или логин</label>
-            <input
-              type="text"
-              value={loginVal}
-              onChange={e => setLoginVal(e.target.value)}
-              placeholder="example@mail.com"
-              className="w-full px-4 py-3 rounded-xl font-body text-sm text-white outline-none transition-all"
-              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
-              required
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={loginVal}
+                onChange={e => setLoginVal(e.target.value)}
+                placeholder="example@gmail.com"
+                className="w-full px-4 py-3 pr-10 rounded-xl font-body text-sm text-white outline-none transition-all"
+                style={{
+                  background: "rgba(255,255,255,0.07)",
+                  border: `1px solid ${isEmail && !emailValid ? "rgba(232,52,58,0.5)" : isEmail && emailValid && loginVal ? "rgba(0,176,111,0.5)" : "rgba(255,255,255,0.1)"}`,
+                }}
+                required
+              />
+              {isEmail && loginVal && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {emailValid
+                    ? <Icon name="CheckCircle" size={16} fallback="Check" style={{ color: "#00D080" }} />
+                    : <Icon name="XCircle" size={16} fallback="X" style={{ color: "#FF6B6B" }} />}
+                </div>
+              )}
+            </div>
+            {isEmail && !emailValid && (
+              <p className="font-body text-red-400 text-xs mt-1">Некорректный email. Пример: example@gmail.com</p>
+            )}
           </div>
 
           <div>

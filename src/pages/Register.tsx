@@ -14,9 +14,15 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  const emailValid = email === "" || emailRegex.test(email);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!emailRegex.test(email)) { setError("Введи корректный email: example@gmail.com"); return; }
+    if (username.trim().length < 3) { setError("Логин должен быть минимум 3 символа"); return; }
+    if (password.length < 6) { setError("Пароль должен быть минимум 6 символов"); return; }
     if (password !== password2) { setError("Пароли не совпадают"); return; }
     setLoading(true);
     const err = await register(username, email, password);
@@ -66,15 +72,30 @@ export default function Register() {
 
           <div>
             <label className="font-body text-white/50 text-xs mb-1.5 block">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="example@mail.com"
-              className="w-full px-4 py-3 rounded-xl font-body text-sm text-white outline-none"
-              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
-              required
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="example@gmail.com"
+                className="w-full px-4 py-3 pr-10 rounded-xl font-body text-sm text-white outline-none transition-all"
+                style={{
+                  background: "rgba(255,255,255,0.07)",
+                  border: `1px solid ${!emailValid ? "rgba(232,52,58,0.5)" : email && emailValid ? "rgba(0,176,111,0.5)" : "rgba(255,255,255,0.1)"}`,
+                }}
+                required
+              />
+              {email && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {emailValid
+                    ? <Icon name="CheckCircle" size={16} fallback="Check" style={{ color: "#00D080" }} />
+                    : <Icon name="XCircle" size={16} fallback="X" style={{ color: "#FF6B6B" }} />}
+                </div>
+              )}
+            </div>
+            {!emailValid && (
+              <p className="font-body text-red-400 text-xs mt-1">Введи корректный email: example@gmail.com</p>
+            )}
           </div>
 
           <div>
