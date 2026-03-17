@@ -210,6 +210,7 @@ export default function Index() {
   const [loaded, setLoaded] = useState(false);
   const [dbPrices, setDbPrices] = useState<Record<string, number>>({});
   const [dbStock, setDbStock] = useState<Record<string, number>>({});
+  const [reviewsExpanded, setReviewsExpanded] = useState(false);
 
   useEffect(() => {
     setLoaded(true);
@@ -491,8 +492,8 @@ export default function Index() {
             <div className="pixel-divider max-w-xs mx-auto mt-4" />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
-            {reviews.map((r, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+            {(reviewsExpanded ? reviews : reviews.slice(0, 6)).map((r, i) => (
               <div
                 key={i}
                 className="rounded-2xl p-5"
@@ -512,6 +513,19 @@ export default function Index() {
               </div>
             ))}
           </div>
+
+          {!reviewsExpanded && (
+            <div className="text-center mb-8">
+              <button
+                onClick={() => setReviewsExpanded(true)}
+                className="btn-shimmer inline-flex items-center gap-2 px-6 py-3 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
+                style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}
+              >
+                <Icon name="ChevronDown" size={16} />
+                Показать все {reviews.length} отзывов
+              </button>
+            </div>
+          )}
 
           <div className="text-center">
             <p className="text-white/40 font-body text-sm mb-5">Все отзывы на внешних платформах:</p>
