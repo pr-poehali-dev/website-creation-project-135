@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 
 const ORDERS_URL = "https://functions.poehali.dev/f852d147-eae1-4265-a94d-63d014c42231";
@@ -31,10 +31,14 @@ type OrderData = {
   needs_chat?: boolean;
   chat_id?: string | null;
   game?: string;
+  crypto_rate?: number | null;
+  crypto_amount?: number | null;
+  usd_rate?: number | null;
 };
 
 export default function Pay() {
   const [params] = useSearchParams();
+  const navigate = useNavigate();
   const orderId = params.get("order_id");
 
   const [order, setOrder] = useState<OrderData | null>(null);
@@ -55,42 +59,46 @@ export default function Pay() {
   }, [orderId]);
 
   useEffect(() => {
-    if (!order) return;
+    if (!order || order.crypto_amount) return;
+    // Только если курс не зафиксирован в БД — запрашиваем динамически
     fetchRate(order.network);
-    // Обновляем курс каждые 2 минуты
-    const interval = setInterval(() => fetchRate(order.network), 120000);
-    return () => clearInterval(interval);
   }, [order?.network]);
 
   async function fetchRate(network: string) {
-    const coinIds: Record<string, string> = {
-      LTC: "litecoin",
-      SOL: "solana",
-    };
+    const coinIds: Record<string, string> = { LTC: "litecoin", SOL: "solana" };
     const coinId = coinIds[network];
-    if (!coinId) return; // USDT = 1:1, курс не нужен
+    if (!coinId) return;
     try {
-      const res = await fetch(
-        `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd`
-      );
+      const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd`);
       const data = await res.json();
       const price = data[coinId]?.usd;
       if (price) setCryptoRate(price);
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
   }
 
   function getCryptoAmount(): string | null {
     if (!order) return null;
-    if (order.network === "USDT_BEP" || order.network === "USDT_TRC") {
-      return order.amount_usd.toFixed(2) + " USDT";
+    // Приоритет — зафиксированный курс из БД
+    if (order.crypto_amount) {
+      if (order.network === "USDT_BEP" || order.network === "USDT_TRC") return order.crypto_amount.toFixed(2) + " USDT";
+      if (order.network === "LTC") return order.crypto_amount.toFixed(6) + " LTC";
+      if (order.network === "SOL") return order.crypto_amount.toFixed(4) + " SOL";
     }
+    // Fallback — динамический курс
+    if (order.network === "USDT_BEP" || order.network === "USDT_TRC") return order.amount_usd.toFixed(2) + " USDT";
     if (!cryptoRate) return null;
     const amount = order.amount_usd / cryptoRate;
     if (order.network === "LTC") return amount.toFixed(6) + " LTC";
     if (order.network === "SOL") return amount.toFixed(4) + " SOL";
     return null;
+  }
+
+  function getCryptoRateLabel(): string | null {
+    if (!order) return null;
+    const rate = order.crypto_rate || cryptoRate;
+    if (!rate || order.network === "USDT_BEP" || order.network === "USDT_TRC") return null;
+    const symbol = order.network === "LTC" ? "LTC" : "SOL";
+    return `1 ${symbol} = $${rate.toLocaleString("ru", { maximumFractionDigits: 2 })} · курс зафиксирован`;
   }
 
   useEffect(() => {
@@ -108,7 +116,10 @@ export default function Pay() {
     try {
       const res = await fetch(`${ORDERS_URL}?action=status&order_id=${orderId}`);
       const data = await res.json();
-      if (!data.error) setOrder(data);
+      if (!data.error) {
+        setOrder(data);
+        if (data.status === "expired") setExpired(true);
+      }
     } catch {
       // ignore
     }
@@ -213,7 +224,7 @@ export default function Pay() {
                 <button
                   onClick={() => {
                     localStorage.setItem("cambeck_open_chat", "1");
-                    window.location.href = "/";
+                    navigate("/");
                   }}
                   className="w-full py-3 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
                   style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}
@@ -310,23 +321,28 @@ export default function Pay() {
               <div className="text-right">
                 <p className="font-body text-white/50 text-xs mb-1">Отправить</p>
                 {getCryptoAmount() ? (
-                  <div className="flex items-center gap-1 justify-end">
-                    <span className="font-display font-bold text-lg" style={{ color: netColor }}>
-                      {getCryptoAmount()}
-                    </span>
-                    <button
-                      onClick={() => {
-                        const amt = getCryptoAmount();
-                        if (amt) {
-                          navigator.clipboard.writeText(amt.split(" ")[0]);
-                          setCopiedAmount(true);
-                          setTimeout(() => setCopiedAmount(false), 2000);
-                        }
-                      }}
-                      className="w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white transition-colors"
-                    >
-                      <Icon name={copiedAmount ? "Check" : "Copy"} size={12} />
-                    </button>
+                  <div>
+                    <div className="flex items-center gap-1 justify-end">
+                      <span className="font-display font-bold text-lg" style={{ color: netColor }}>
+                        {getCryptoAmount()}
+                      </span>
+                      <button
+                        onClick={() => {
+                          const amt = getCryptoAmount();
+                          if (amt) {
+                            navigator.clipboard.writeText(amt.split(" ")[0]);
+                            setCopiedAmount(true);
+                            setTimeout(() => setCopiedAmount(false), 2000);
+                          }
+                        }}
+                        className="w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white transition-colors"
+                      >
+                        <Icon name={copiedAmount ? "Check" : "Copy"} size={12} />
+                      </button>
+                    </div>
+                    {getCryptoRateLabel() && (
+                      <p className="font-body text-white/25 text-xs mt-0.5 text-right">🔒 {getCryptoRateLabel()}</p>
+                    )}
                   </div>
                 ) : (
                   <span className="font-body text-white/30 text-xs animate-pulse">загрузка курса...</span>

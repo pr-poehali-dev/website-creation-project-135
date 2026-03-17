@@ -275,14 +275,33 @@ def handler(event: dict, context) -> dict:
         total_usd = float(price_usd) * quantity
         user_id = get_user_id_from_token(conn, auth_token)
 
-        # Получаем актуальный курс на момент создания заказа
+        # Получаем актуальный курс USD→RUB
         cur.execute(f"SELECT value FROM {schema}.settings WHERE key = 'usd_rate'")
         rate_row = cur.fetchone()
         current_usd_rate = float(rate_row[0]) if rate_row else 81.91
 
+        # Получаем курс крипты к USD и фиксируем crypto_amount
+        crypto_rate = None
+        crypto_amount = None
+        try:
+            coin_ids = {"LTC": "litecoin", "SOL": "solana"}
+            if network in coin_ids:
+                r = requests.get(
+                    f"https://api.coingecko.com/api/v3/simple/price?ids={coin_ids[network]}&vs_currencies=usd",
+                    timeout=8
+                )
+                price_data = r.json()
+                crypto_rate = float(price_data[coin_ids[network]]["usd"])
+                crypto_amount = round(total_usd / crypto_rate, 8)
+            elif network in ("USDT_BEP", "USDT_TRC"):
+                crypto_rate = 1.0
+                crypto_amount = round(total_usd, 2)
+        except Exception:
+            pass
+
         cur.execute(
-            f"INSERT INTO {schema}.orders (item_id, item_name, price_usd, quantity, crypto_network, crypto_address, status, user_id, game, usd_rate) VALUES (%s, %s, %s, %s, %s, %s, 'pending', %s, %s, %s) RETURNING id, created_at",
-            (item_id, item_name, total_usd, quantity, network, address, user_id, game, current_usd_rate)
+            f"INSERT INTO {schema}.orders (item_id, item_name, price_usd, quantity, crypto_network, crypto_address, status, user_id, game, usd_rate, crypto_rate, crypto_amount) VALUES (%s, %s, %s, %s, %s, %s, 'pending', %s, %s, %s, %s, %s) RETURNING id, created_at",
+            (item_id, item_name, total_usd, quantity, network, address, user_id, game, current_usd_rate, crypto_rate, crypto_amount)
         )
         order_id, created_at = cur.fetchone()
         conn.commit()
@@ -296,6 +315,8 @@ def handler(event: dict, context) -> dict:
             "amount_usd": total_usd,
             "amount_rub": round(total_usd * current_usd_rate, 2),
             "usd_rate": current_usd_rate,
+            "crypto_rate": crypto_rate,
+            "crypto_amount": crypto_amount,
             "item_name": item_name,
             "quantity": quantity,
             "created_at": created_at,
@@ -311,8 +332,18 @@ def handler(event: dict, context) -> dict:
 
         conn = get_conn()
         cur = conn.cursor()
+        schema = os.environ.get("MAIN_DB_SCHEMA", "public")
+
+        # Автоудаляем pending-заказы старше 30 минут
+        cur.execute(f"""
+            UPDATE {schema}.orders SET status = 'expired'
+            WHERE status = 'pending'
+            AND created_at < NOW() - INTERVAL '30 minutes'
+        """)
+        conn.commit()
+
         cur.execute(
-            "SELECT id, item_id, item_name, price_usd, quantity, crypto_network, crypto_address, status, paid_at FROM orders WHERE id = %s",
+            f"SELECT id, item_id, item_name, price_usd, quantity, crypto_network, crypto_address, status, paid_at, game, crypto_rate, crypto_amount, usd_rate FROM {schema}.orders WHERE id = %s",
             (order_id,)
         )
         row = cur.fetchone()
@@ -330,11 +361,15 @@ def handler(event: dict, context) -> dict:
             "address": row[6],
             "status": row[7],
             "paid_at": row[8],
+            "game": row[9],
+            "crypto_rate": float(row[10]) if row[10] else None,
+            "crypto_amount": float(row[11]) if row[11] else None,
+            "usd_rate": float(row[12]) if row[12] else None,
         }
 
         accounts = []
         if order["status"] == "paid":
-            cur.execute("SELECT credentials FROM stock_accounts WHERE order_id = %s", (order_id,))
+            cur.execute(f"SELECT credentials FROM stock_accounts WHERE order_id = %s", (order_id,))
             accounts = [r[0] for r in cur.fetchall()]
 
         conn.close()
