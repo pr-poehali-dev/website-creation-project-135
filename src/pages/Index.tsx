@@ -808,7 +808,7 @@ export default function Index() {
               Cambeck<span style={{ color: "#FFB800" }}>SHOP</span>
             </span>
           </div>
-          <p className="font-body text-white/30 text-sm">© 2024 CambeckSHOP. Все права защищены.</p>
+          <p className="font-body text-white/30 text-sm">© 2026 CambeckSHOP. Все права защищены.</p>
           <div className="flex gap-4">
             {["Каталог", "Отзывы", "Поддержка"].map((s) => (
               <button key={s} onClick={() => scrollTo(s)}
