@@ -153,16 +153,27 @@ export default function Index() {
 
   useEffect(() => {
     setLoaded(true);
-    // Загружаем цены
-    fetch(`${ORDERS_URL}?action=prices`)
-      .then(r => r.json())
-      .then(d => { if (d.prices) setDbPrices(d.prices); })
-      .catch(() => {});
-    // Загружаем реальные остатки из БД
-    fetch(`${ORDERS_URL}?action=stock_public`)
-      .then(r => r.json())
-      .then(d => { if (d.stock) setDbStock(d.stock); })
-      .catch(() => {});
+
+    function loadPrices() {
+      fetch(`${ORDERS_URL}?action=prices`)
+        .then(r => r.json())
+        .then(d => { if (d.prices) setDbPrices(d.prices); })
+        .catch(() => {});
+    }
+
+    function loadStock() {
+      fetch(`${ORDERS_URL}?action=stock_public`)
+        .then(r => r.json())
+        .then(d => { if (d.stock) setDbStock(d.stock); })
+        .catch(() => {});
+    }
+
+    loadPrices();
+    loadStock();
+
+    // Обновляем остатки каждые 60 секунд
+    const interval = setInterval(loadStock, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   const scrollTo = (id: string) => {
