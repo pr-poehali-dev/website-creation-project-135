@@ -278,19 +278,24 @@ export default function Admin() {
     if (!editingPrice.trim()) return;
     setSavingPrice(true);
     setPriceMsg("");
-    const res = await fetch(`${ORDERS_URL}?action=set_price`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Admin-Token": token },
-      body: JSON.stringify({ item_id: itemId, price_usd: parseFloat(editingPrice) }),
-    });
-    const data = await res.json();
-    setSavingPrice(false);
-    if (data.success) {
-      setPriceMsg("✅ Цена сохранена");
-      fetchPrices();
-      setTimeout(() => setPriceMsg(""), 2000);
-    } else {
-      setPriceMsg("❌ Ошибка сохранения");
+    try {
+      const res = await fetch(`${ORDERS_URL}?action=set_price`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+        body: JSON.stringify({ item_id: itemId, price_usd: parseFloat(editingPrice) }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPriceMsg("✅ Цена сохранена");
+        fetchPrices();
+        setTimeout(() => setPriceMsg(""), 2000);
+      } else {
+        setPriceMsg("❌ " + (data.error || "Ошибка сохранения"));
+      }
+    } catch {
+      setPriceMsg("❌ Ошибка соединения");
+    } finally {
+      setSavingPrice(false);
     }
   }
 
@@ -304,22 +309,27 @@ export default function Admin() {
     if (!newCredentials.trim() || selectedItemId === null) return;
     setAddingStock(true);
     setStockMsg("");
-    const lines = newCredentials.trim().split("\n").filter(l => l.trim());
-    const res = await fetch(`${ORDERS_URL}?action=add_stock`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Admin-Token": token },
-      body: JSON.stringify({ item_id: selectedItemId, credentials: lines }),
-    });
-    const data = await res.json();
-    if (data.added) {
-      setStockMsg(`✅ Добавлено ${data.added} аккаунтов`);
-      setNewCredentials("");
-      fetchItemAccounts(selectedItemId);
-      fetchStockSummary();
-    } else {
-      setStockMsg("❌ Ошибка при добавлении");
+    try {
+      const lines = newCredentials.trim().split("\n").filter(l => l.trim());
+      const res = await fetch(`${ORDERS_URL}?action=add_stock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+        body: JSON.stringify({ item_id: selectedItemId, credentials: lines }),
+      });
+      const data = await res.json();
+      if (data.added) {
+        setStockMsg(`✅ Добавлено ${data.added} аккаунтов`);
+        setNewCredentials("");
+        fetchItemAccounts(selectedItemId);
+        fetchStockSummary();
+      } else {
+        setStockMsg("❌ " + (data.error || "Ошибка при добавлении"));
+      }
+    } catch (e) {
+      setStockMsg("❌ Ошибка соединения");
+    } finally {
+      setAddingStock(false);
     }
-    setAddingStock(false);
   }
 
   async function deleteAccount(accountId: string) {
