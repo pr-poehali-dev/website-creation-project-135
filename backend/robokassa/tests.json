@@ -1,0 +1,19 @@
+{
+  "tests": [
+    {
+      "name": "Missing fields returns 400",
+      "method": "POST",
+      "path": "/?action=create",
+      "body": {"item_id": 1},
+      "expectedStatus": 400,
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Unknown action returns 404",
+      "method": "GET",
+      "path": "/?action=unknown",
+      "expectedStatus": 404,
+      "bodyMatcher": "partial"
+    }
+  ]
+}

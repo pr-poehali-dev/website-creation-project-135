@@ -8,6 +8,7 @@ import { AuthProvider } from "./context/AuthContext";
 import Index from "./pages/Index";
 import Admin from "./pages/Admin";
 import Pay from "./pages/Pay";
+import PaySuccess from "./pages/PaySuccess";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
@@ -26,6 +27,7 @@ function AppRoutes() {
         <Route path="/" element={<Index />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/pay" element={<Pay />} />
+        <Route path="/pay/success" element={<PaySuccess />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/profile" element={<Profile />} />

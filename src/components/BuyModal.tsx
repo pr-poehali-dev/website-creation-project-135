@@ -4,6 +4,8 @@ import Icon from "@/components/ui/icon";
 import { useAuth } from "@/context/AuthContext";
 
 const ORDERS_URL = "https://functions.poehali.dev/f852d147-eae1-4265-a94d-63d014c42231";
+const ROBOKASSA_URL = "https://functions.poehali.dev/60d8dcc0-3354-4a73-9c86-1698efc497c7";
+const USD_TO_RUB = 90;
 
 const NETWORKS = [
   { id: "LTC",      label: "LTC (Litecoin)",     icon: "Ł", color: "#A8A9AD" },
@@ -27,15 +29,44 @@ type Props = {
 export default function BuyModal({ item, onClose }: Props) {
   const navigate = useNavigate();
   const { user, token } = useAuth();
+  const [payMethod, setPayMethod] = useState<"card" | "crypto" | null>(null);
   const [network, setNetwork] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const maxQty = Math.min(item.stock, 10);
-  const total = (item.priceUsd * quantity).toFixed(2);
+  const totalUsd = (item.priceUsd * quantity).toFixed(2);
+  const totalRub = Math.ceil(item.priceUsd * quantity * USD_TO_RUB);
 
-  async function createOrder() {
+  async function payByCard() {
+    setLoading(true);
+    setError("");
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["X-Auth-Token"] = token;
+      const res = await fetch(`${ROBOKASSA_URL}?action=create`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          item_id: item.id,
+          item_name: item.name,
+          price_usd: item.priceUsd,
+          quantity,
+          usd_to_rub: USD_TO_RUB,
+        }),
+      });
+      const data = await res.json();
+      if (data.error) { setError(data.error); setLoading(false); return; }
+      // Редиректим на страницу оплаты Robokassa
+      window.location.href = data.pay_url;
+    } catch {
+      setError("Ошибка соединения, попробуй ещё раз");
+      setLoading(false);
+    }
+  }
+
+  async function payByCrypto() {
     if (!network) { setError("Выберите сеть оплаты"); return; }
     setLoading(true);
     setError("");
@@ -122,70 +153,118 @@ export default function BuyModal({ item, onClose }: Props) {
             <div>
               <p className="font-body text-white/50 text-xs mb-2">Количество</p>
               <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white transition-all hover:bg-white/10"
-                  style={{ background: "rgba(255,255,255,0.07)" }}
-                >−</button>
+                <button onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white"
+                  style={{ background: "rgba(255,255,255,0.07)" }}>−</button>
                 <span className="font-display font-bold text-white text-lg w-8 text-center">{quantity}</span>
-                <button
-                  onClick={() => setQuantity(q => Math.min(maxQty, q + 1))}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white transition-all hover:bg-white/10"
-                  style={{ background: "rgba(255,255,255,0.07)" }}
-                >+</button>
+                <button onClick={() => setQuantity(q => Math.min(maxQty, q + 1))}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white"
+                  style={{ background: "rgba(255,255,255,0.07)" }}>+</button>
                 <span className="font-body text-white/30 text-xs ml-2">макс. {maxQty}</span>
               </div>
             </div>
           )}
 
-          {/* Выбор сети */}
-          <div>
-            <p className="font-body text-white/50 text-xs mb-2">Способ оплаты (крипта)</p>
-            <div className="grid grid-cols-2 gap-2">
-              {NETWORKS.map(n => (
-                <button
-                  key={n.id}
-                  onClick={() => setNetwork(n.id)}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl font-body text-sm text-left transition-all hover:scale-[1.02]"
-                  style={{
-                    background: network === n.id ? `${n.color}22` : "rgba(255,255,255,0.04)",
-                    border: `1px solid ${network === n.id ? n.color + "66" : "rgba(255,255,255,0.07)"}`,
-                    color: network === n.id ? n.color : "rgba(255,255,255,0.6)",
-                  }}
-                >
-                  <span className="font-bold text-base w-5 text-center">{n.icon}</span>
-                  <span className="text-xs leading-tight">{n.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Итого */}
           <div className="flex items-center justify-between px-4 py-3 rounded-xl"
             style={{ background: "rgba(0,102,255,0.08)", border: "1px solid rgba(0,102,255,0.15)" }}>
             <span className="font-body text-white/50 text-sm">Итого</span>
-            <span className="font-display font-bold text-xl" style={{ color: "#4DA6FF" }}>
-              💸 ${total}
-            </span>
+            <div className="text-right">
+              <span className="font-display font-bold text-xl" style={{ color: "#4DA6FF" }}>
+                ${totalUsd}
+              </span>
+              <span className="font-body text-white/30 text-xs ml-2">≈ {totalRub} ₽</span>
+            </div>
           </div>
+
+          {/* Выбор способа оплаты */}
+          <div>
+            <p className="font-body text-white/50 text-xs mb-2">Способ оплаты</p>
+            <div className="flex flex-col gap-2">
+              {/* Карта / СБП */}
+              <button
+                onClick={() => { setPayMethod("card"); setNetwork(null); }}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all"
+                style={{
+                  background: payMethod === "card" ? "rgba(0,176,111,0.12)" : "rgba(255,255,255,0.04)",
+                  border: `1px solid ${payMethod === "card" ? "rgba(0,176,111,0.4)" : "rgba(255,255,255,0.07)"}`,
+                }}
+              >
+                <span className="text-xl">💳</span>
+                <div className="flex-1">
+                  <div className="font-body font-bold text-sm text-white">Карта / СБП</div>
+                  <div className="font-body text-xs text-white/40">Оплата в рублях · {totalRub} ₽</div>
+                </div>
+                {payMethod === "card" && <span className="text-green-400 text-lg">✓</span>}
+              </button>
+
+              {/* Крипта */}
+              <button
+                onClick={() => setPayMethod("crypto")}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all"
+                style={{
+                  background: payMethod === "crypto" ? "rgba(0,102,255,0.12)" : "rgba(255,255,255,0.04)",
+                  border: `1px solid ${payMethod === "crypto" ? "rgba(0,102,255,0.4)" : "rgba(255,255,255,0.07)"}`,
+                }}
+              >
+                <span className="text-xl">🔐</span>
+                <div className="flex-1">
+                  <div className="font-body font-bold text-sm text-white">Криптовалюта</div>
+                  <div className="font-body text-xs text-white/40">LTC · USDT · SOL · ${totalUsd}</div>
+                </div>
+                {payMethod === "crypto" && <span style={{ color: "#4DA6FF" }} className="text-lg">✓</span>}
+              </button>
+            </div>
+          </div>
+
+          {/* Выбор сети (только для крипты) */}
+          {payMethod === "crypto" && (
+            <div>
+              <p className="font-body text-white/50 text-xs mb-2">Выберите сеть</p>
+              <div className="grid grid-cols-2 gap-2">
+                {NETWORKS.map(n => (
+                  <button
+                    key={n.id}
+                    onClick={() => setNetwork(n.id)}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl font-body text-sm text-left transition-all"
+                    style={{
+                      background: network === n.id ? `${n.color}22` : "rgba(255,255,255,0.04)",
+                      border: `1px solid ${network === n.id ? n.color + "66" : "rgba(255,255,255,0.07)"}`,
+                      color: network === n.id ? n.color : "rgba(255,255,255,0.6)",
+                    }}
+                  >
+                    <span className="font-bold text-base w-5 text-center">{n.icon}</span>
+                    <span className="text-xs leading-tight">{n.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {error && (
             <p className="font-body text-red-400 text-sm text-center">{error}</p>
           )}
 
-          {/* Кнопка */}
+          {/* Кнопка оплаты */}
           <button
-            onClick={createOrder}
-            disabled={loading}
-            className="btn-shimmer w-full py-3.5 rounded-xl font-body font-bold text-white text-base transition-all hover:scale-[1.02] disabled:opacity-60"
-            style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}
+            onClick={payMethod === "card" ? payByCard : payByCrypto}
+            disabled={loading || !payMethod || (payMethod === "crypto" && !network)}
+            className="w-full py-3.5 rounded-xl font-body font-bold text-white text-base disabled:opacity-40"
+            style={{
+              background: payMethod === "card"
+                ? "linear-gradient(135deg, #00B06F, #007A4D)"
+                : "linear-gradient(135deg, #0066FF, #0044BB)",
+              touchAction: "manipulation",
+              border: "none",
+              cursor: "pointer",
+            }}
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                Создаём заказ...
+                {payMethod === "card" ? "Переходим к оплате..." : "Создаём заказ..."}
               </span>
-            ) : "Перейти к оплате →"}
+            ) : payMethod === "card" ? "💳 Оплатить картой / СБП" : "🔐 Перейти к оплате →"}
           </button>
         </div>
       </div>
