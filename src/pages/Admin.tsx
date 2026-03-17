@@ -167,6 +167,7 @@ export default function Admin() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
+  const [chatSubTab, setChatSubTab] = useState<"support" | "order">("support");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Orders
@@ -208,6 +209,12 @@ export default function Admin() {
   }, [selectedChat]);
 
   useEffect(() => {
+    if (!isAuthed) return;
+    setSelectedChat(null);
+    fetchChats(chatSubTab);
+  }, [chatSubTab]);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
@@ -239,8 +246,9 @@ export default function Admin() {
     }
   }
 
-  async function fetchChats() {
-    const res = await fetch(`${CHAT_URL}?action=chats`, { headers: { "X-Admin-Token": token } });
+  async function fetchChats(chatType?: string) {
+    const type = chatType || chatSubTab;
+    const res = await fetch(`${CHAT_URL}?action=chats&chat_type=${type}`, { headers: { "X-Admin-Token": token } });
     const data = await res.json();
     if (data.chats) setChats(data.chats);
   }
@@ -538,7 +546,7 @@ export default function Admin() {
         </div>
         <div className="flex items-center gap-1">
           {[
-            { id: "chats", label: "💬 Чаты", count: chats.filter(c => c.status === "open").length },
+            { id: "chats", label: "💬 Чаты", count: chats.filter(c => c.status === "open").length + 0 },
             { id: "orders", label: "📦 Заказы", count: orders.filter(o => o.status === "pending").length },
             { id: "stock", label: "🗄️ Склад", count: null },
             { id: "catalog", label: "🛒 Каталог", count: null },
@@ -1071,12 +1079,28 @@ export default function Admin() {
           {/* Список чатов */}
           <div className="w-64 flex-shrink-0 border-r border-white/5 flex flex-col overflow-hidden"
             style={{ background: "#131C27" }}>
-            <div className="px-4 py-3 border-b border-white/5">
-              <p className="font-body text-white/40 text-xs uppercase tracking-wider">Обращения</p>
+            {/* Подвкладки */}
+            <div className="flex border-b border-white/5">
+              {[
+                { id: "support", label: "💬 Поддержка" },
+                { id: "order",   label: "📦 Заказы" },
+              ].map(st => (
+                <button key={st.id} onClick={() => setChatSubTab(st.id as "support" | "order")}
+                  className="flex-1 py-3 font-body text-xs transition-all"
+                  style={{
+                    background: chatSubTab === st.id ? "rgba(0,102,255,0.15)" : "transparent",
+                    color: chatSubTab === st.id ? "#4DA6FF" : "rgba(255,255,255,0.35)",
+                    borderBottom: chatSubTab === st.id ? "2px solid #0066FF" : "2px solid transparent",
+                  }}>
+                  {st.label}
+                </button>
+              ))}
             </div>
             <div className="flex-1 overflow-y-auto">
               {chats.length === 0 && (
-                <div className="text-center text-white/20 text-sm mt-12 px-4">Пока нет обращений</div>
+                <div className="text-center text-white/20 text-sm mt-12 px-4">
+                  {chatSubTab === "support" ? "Нет обращений" : "Нет заказных чатов"}
+                </div>
               )}
               {chats.map(chat => (
                 <button key={chat.id} onClick={() => { setSelectedChat(chat); fetchMessages(chat.id); }}
