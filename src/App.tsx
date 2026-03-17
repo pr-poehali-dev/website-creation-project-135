@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import Index from "./pages/Index";
 import Admin from "./pages/Admin";
+import Pay from "./pages/Pay";
 import NotFound from "./pages/NotFound";
 import ChatWidget from "./components/ChatWidget";
 
@@ -14,15 +15,17 @@ const queryClient = new QueryClient();
 function AppRoutes() {
   const location = useLocation();
   const isAdmin = location.pathname === "/admin";
+  const isPay = location.pathname === "/pay";
   return (
     <>
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/pay" element={<Pay />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
-      {!isAdmin && <ChatWidget />}
+      {!isAdmin && !isPay && <ChatWidget />}
     </>
   );
 }

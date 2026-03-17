@@ -1,0 +1,34 @@
+{
+  "tests": [
+    {
+      "name": "Create order LTC",
+      "method": "POST",
+      "path": "/?action=create",
+      "body": {
+        "item_id": 11,
+        "item_name": "Random PACK SAB",
+        "price_usd": 0.5,
+        "quantity": 1,
+        "network": "LTC"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {"address": "ltc1qw6m0527yhuah7n72m7gad9acrdczzufhwcckk0"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Unknown network",
+      "method": "POST",
+      "path": "/?action=create",
+      "body": {"item_id": 1, "item_name": "Test", "price_usd": 1.0, "quantity": 1, "network": "UNKNOWN"},
+      "expectedStatus": 400,
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get orders without admin token",
+      "method": "GET",
+      "path": "/?action=list",
+      "expectedStatus": 403,
+      "bodyMatcher": "partial"
+    }
+  ]
+}
