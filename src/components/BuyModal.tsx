@@ -56,12 +56,16 @@ export default function BuyModal({ item, onClose }: Props) {
           usd_to_rub: USD_TO_RUB,
         }),
       });
+      if (!res.ok) {
+        setError("Оплата картой временно недоступна. Используй криптовалюту.");
+        setLoading(false);
+        return;
+      }
       const data = await res.json();
       if (data.error) { setError(data.error); setLoading(false); return; }
-      // Редиректим на страницу оплаты Robokassa
       window.location.href = data.pay_url;
     } catch {
-      setError("Ошибка соединения, попробуй ещё раз");
+      setError("Оплата картой временно недоступна. Используй криптовалюту.");
       setLoading(false);
     }
   }
