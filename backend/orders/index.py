@@ -29,7 +29,7 @@ def cors():
     return {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, X-Admin-Token",
+        "Access-Control-Allow-Headers": "Content-Type, X-Admin-Token, X-Auth-Token",
     }
 
 def ok(data):
