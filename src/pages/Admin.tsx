@@ -26,6 +26,108 @@ type Order = { order_id: string; item_name: string; amount_usd: number; quantity
 type StockRow = { item_id: number; available: number; total: number };
 type Account = { id: string; credentials: string; is_sold: boolean; sold_at: string | null; created_at: string };
 
+function NewItemForm({ token, onCreated }: { token: string; onCreated: () => void }) {
+  const [name, setName] = useState("");
+  const [itemId, setItemId] = useState("");
+  const [priceUsd, setPriceUsd] = useState("");
+  const [emoji, setEmoji] = useState("🎮");
+  const [credentials, setCredentials] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  async function handleSave() {
+    if (!name.trim() || !itemId.trim() || !priceUsd.trim()) {
+      setMsg("❌ Заполни название, ID и цену");
+      return;
+    }
+    setSaving(true);
+    setMsg("");
+    const lines = credentials.trim().split("\n").filter(l => l.trim());
+    if (lines.length > 0) {
+      const res = await fetch(`${ORDERS_URL}?action=add_stock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+        body: JSON.stringify({ item_id: parseInt(itemId), credentials: lines }),
+      });
+      const data = await res.json();
+      if (data.error) { setMsg("❌ " + data.error); setSaving(false); return; }
+    }
+    setMsg(`✅ Товар создан${lines.length > 0 ? `, добавлено ${lines.length} аккаунтов` : ""}`);
+    setSaving(false);
+    setTimeout(() => onCreated(), 1000);
+  }
+
+  return (
+    <div className="max-w-lg">
+      <h2 className="font-display font-bold text-white text-lg mb-5">➕ Новый товар</h2>
+      <div className="rounded-2xl p-5 flex flex-col gap-4"
+        style={{ background: "#161F2C", border: "1px solid rgba(0,102,255,0.2)" }}>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="font-body text-white/50 text-xs mb-1.5 block">ID товара (число)</label>
+            <input value={itemId} onChange={e => setItemId(e.target.value)} placeholder="Например: 100"
+              className="w-full px-3 py-2.5 rounded-xl font-mono text-sm text-white outline-none"
+              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+            <p className="font-body text-white/25 text-xs mt-1">Уникальный номер, не повторяй</p>
+          </div>
+          <div>
+            <label className="font-body text-white/50 text-xs mb-1.5 block">Эмодзи</label>
+            <input value={emoji} onChange={e => setEmoji(e.target.value)} placeholder="🎮"
+              className="w-full px-3 py-2.5 rounded-xl text-sm text-white outline-none text-center"
+              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+          </div>
+        </div>
+
+        <div>
+          <label className="font-body text-white/50 text-xs mb-1.5 block">Название товара</label>
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="Например: Cool Pack x10"
+            className="w-full px-3 py-2.5 rounded-xl font-body text-sm text-white outline-none"
+            style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+        </div>
+
+        <div>
+          <label className="font-body text-white/50 text-xs mb-1.5 block">Цена в долларах ($)</label>
+          <input value={priceUsd} onChange={e => setPriceUsd(e.target.value)} placeholder="1.50"
+            type="number" step="0.01" min="0.01"
+            className="w-full px-3 py-2.5 rounded-xl font-body text-sm text-white outline-none"
+            style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+        </div>
+
+        <div>
+          <label className="font-body text-white/50 text-xs mb-1.5 block">Аккаунты (по одному на строку)</label>
+          <textarea value={credentials} onChange={e => setCredentials(e.target.value)}
+            rows={5} placeholder={"login1:pass1\nlogin2:pass2"}
+            className="w-full px-3 py-2 rounded-xl font-mono text-sm text-white outline-none resize-none"
+            style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+          <p className="font-body text-white/25 text-xs mt-1">Можно оставить пустым и добавить потом</p>
+        </div>
+
+        {msg && <p className="font-body text-sm" style={{ color: msg.startsWith("✅") ? "#00D080" : "#FF6B6B" }}>{msg}</p>}
+
+        <div className="flex gap-3">
+          <button onClick={handleSave} disabled={saving}
+            className="flex-1 py-3 rounded-xl font-body font-bold text-sm text-white disabled:opacity-40"
+            style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
+            {saving ? "Создаём..." : "✅ Создать товар"}
+          </button>
+          <button onClick={onCreated}
+            className="px-5 py-3 rounded-xl font-body text-sm text-white/50 hover:text-white transition-colors"
+            style={{ background: "rgba(255,255,255,0.05)" }}>
+            Отмена
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 p-4 rounded-xl" style={{ background: "rgba(255,184,0,0.07)", border: "1px solid rgba(255,184,0,0.15)" }}>
+        <p className="font-body text-yellow-400/70 text-xs leading-relaxed">
+          ⚠️ После создания нужно добавить товар в каталог сайта — напиши мне ID и название, я добавлю его на страницу магазина.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const [token, setToken] = useState(() => localStorage.getItem("cambeck_admin_token") || "");
   const [loginVal, setLoginVal] = useState("");
@@ -332,29 +434,52 @@ export default function Admin() {
       {tab === "stock" && (
         <div className="flex-1 overflow-hidden flex">
           {/* Список товаров */}
-          <div className="w-64 flex-shrink-0 border-r border-white/5 overflow-y-auto"
+          <div className="w-64 flex-shrink-0 border-r border-white/5 flex flex-col overflow-hidden"
             style={{ background: "#131C27" }}>
-            <div className="px-4 py-3 border-b border-white/5">
+            <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
               <p className="font-body text-white/40 text-xs uppercase tracking-wider">Товары</p>
+              <button
+                onClick={() => setSelectedItemId(-1)}
+                className="text-xs font-body font-bold px-2 py-1 rounded-lg transition-all hover:scale-105"
+                style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)", color: "white" }}>
+                + Новый
+              </button>
             </div>
-            {CATALOG_ITEMS.map(item => {
-              const s = getStockForItem(item.id);
-              const available = s?.available ?? 0;
-              return (
-                <button key={item.id} onClick={() => setSelectedItemId(item.id)}
+            <div className="flex-1 overflow-y-auto">
+              {CATALOG_ITEMS.map(item => {
+                const s = getStockForItem(item.id);
+                const available = s?.available ?? 0;
+                return (
+                  <button key={item.id} onClick={() => setSelectedItemId(item.id)}
+                    className="w-full text-left px-4 py-3 border-b border-white/5 transition-all hover:bg-white/5"
+                    style={selectedItemId === item.id ? { background: "rgba(0,102,255,0.1)" } : {}}>
+                    <div className="font-body text-sm text-white truncate">{item.name}</div>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <span className="w-1.5 h-1.5 rounded-full inline-block"
+                        style={{ background: available > 0 ? "#00D080" : "#FF6B6B" }} />
+                      <span className="font-body text-xs" style={{ color: available > 0 ? "#00D080" : "#FF6B6B" }}>
+                        {available > 0 ? `${available} шт.` : "Нет в наличии"}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+              {/* Кастомные товары из стока */}
+              {stockSummary.filter(s => !CATALOG_ITEMS.find(i => i.id === s.item_id)).map(s => (
+                <button key={s.item_id} onClick={() => setSelectedItemId(s.item_id)}
                   className="w-full text-left px-4 py-3 border-b border-white/5 transition-all hover:bg-white/5"
-                  style={selectedItemId === item.id ? { background: "rgba(0,102,255,0.1)" } : {}}>
-                  <div className="font-body text-sm text-white truncate">{item.name}</div>
+                  style={selectedItemId === s.item_id ? { background: "rgba(0,102,255,0.1)" } : {}}>
+                  <div className="font-body text-sm text-white truncate">Товар #{s.item_id}</div>
                   <div className="flex items-center gap-1 mt-0.5">
                     <span className="w-1.5 h-1.5 rounded-full inline-block"
-                      style={{ background: available > 0 ? "#00D080" : "#FF6B6B" }} />
-                    <span className="font-body text-xs" style={{ color: available > 0 ? "#00D080" : "#FF6B6B" }}>
-                      {available > 0 ? `${available} шт.` : "Нет в наличии"}
+                      style={{ background: s.available > 0 ? "#00D080" : "#FF6B6B" }} />
+                    <span className="font-body text-xs" style={{ color: s.available > 0 ? "#00D080" : "#FF6B6B" }}>
+                      {s.available > 0 ? `${s.available} шт.` : "Нет в наличии"}
                     </span>
                   </div>
                 </button>
-              );
-            })}
+              ))}
+            </div>
           </div>
 
           {/* Управление аккаунтами */}
@@ -362,14 +487,17 @@ export default function Admin() {
             {selectedItemId === null ? (
               <div className="flex items-center justify-center h-full text-white/20 flex-col gap-2">
                 <Icon name="Package" size={40} />
-                <p className="font-body">Выберите товар слева</p>
+                <p className="font-body">Выберите товар слева или создай новый</p>
               </div>
+            ) : selectedItemId === -1 ? (
+              /* Форма нового товара */
+              <NewItemForm token={token} onCreated={() => { fetchStockSummary(); setSelectedItemId(null); }} />
             ) : (
               <>
                 <div className="flex items-center justify-between mb-5">
                   <div>
                     <h2 className="font-display font-bold text-white text-lg">
-                      {CATALOG_ITEMS.find(i => i.id === selectedItemId)?.name}
+                      {CATALOG_ITEMS.find(i => i.id === selectedItemId)?.name ?? `Товар #${selectedItemId}`}
                     </h2>
                     <p className="font-body text-white/40 text-xs mt-0.5">
                       Доступно: {getStockForItem(selectedItemId)?.available ?? 0} / {getStockForItem(selectedItemId)?.total ?? 0}
