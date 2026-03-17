@@ -502,44 +502,56 @@ export default function Index() {
             <div className="pixel-divider max-w-xs mx-auto mt-4" />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
-            {[
-              {
-                icon: "MessageCircle",
-                title: "Telegram",
-                desc: "Самый быстрый способ связи. Отвечаем в течение нескольких минут.",
-                label: "Написать в Telegram",
-                color: "#0066FF",
-              },
-              {
-                icon: "HelpCircle",
-                title: "Часто задаваемые вопросы",
-                desc: "Как сделать заказ? Когда придут Robux? Ответы на популярные вопросы.",
-                label: "Открыть FAQ",
-                color: "#E8343A",
-              },
-            ].map((item, i) => (
-              <div
-                key={i}
-                className="rounded-2xl p-6"
-                style={{ background: "rgba(22, 31, 44, 0.9)", border: "1px solid rgba(255,255,255,0.06)" }}
-              >
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
-                  style={{ background: `${item.color}22` }}>
-                  <Icon name={item.icon} size={24} fallback="HelpCircle" />
-                </div>
-                <h3 className="font-display font-bold text-white text-lg mb-2">{item.title}</h3>
-                <p className="font-body text-white/50 text-sm mb-5 leading-relaxed">{item.desc}</p>
-                <button
-                  onClick={() => setSupportModalOpen(true)}
-                  className="btn-shimmer inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
-                  style={{ background: `linear-gradient(135deg, ${item.color}, ${item.color}BB)` }}
-                >
-                  {item.label}
-                  <Icon name="ArrowRight" size={14} />
-                </button>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+            <div className="rounded-2xl p-6" style={{ background: "rgba(22, 31, 44, 0.9)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: "#0066FF22" }}>
+                <Icon name="MessageCircle" size={24} fallback="MessageCircle" />
               </div>
-            ))}
+              <h3 className="font-display font-bold text-white text-lg mb-2">Telegram</h3>
+              <p className="font-body text-white/50 text-sm mb-5 leading-relaxed">Самый быстрый способ связи. Отвечаем в течение нескольких минут.</p>
+              <a
+                href="https://t.me/TanksCrypto"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-shimmer inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
+                style={{ background: "linear-gradient(135deg, #0066FF, #0066FFBB)" }}
+              >
+                Написать в Telegram
+                <Icon name="ArrowRight" size={14} />
+              </a>
+            </div>
+
+            <div className="rounded-2xl p-6" style={{ background: "rgba(22, 31, 44, 0.9)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: "#22c55e22" }}>
+                <Icon name="Mail" size={24} fallback="Mail" />
+              </div>
+              <h3 className="font-display font-bold text-white text-lg mb-2">Email</h3>
+              <p className="font-body text-white/50 text-sm mb-5 leading-relaxed">Отвечаем на письма в течение 24 часов.</p>
+              <a
+                href="mailto:cambeckshop@gmail.com"
+                className="btn-shimmer inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
+                style={{ background: "linear-gradient(135deg, #22c55e, #22c55eBB)" }}
+              >
+                Написать на почту
+                <Icon name="ArrowRight" size={14} />
+              </a>
+            </div>
+
+            <div className="rounded-2xl p-6" style={{ background: "rgba(22, 31, 44, 0.9)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: "#E8343A22" }}>
+                <Icon name="HelpCircle" size={24} fallback="HelpCircle" />
+              </div>
+              <h3 className="font-display font-bold text-white text-lg mb-2">Часто задаваемые вопросы</h3>
+              <p className="font-body text-white/50 text-sm mb-5 leading-relaxed">Как сделать заказ? Когда придут Robux? Ответы на популярные вопросы.</p>
+              <button
+                onClick={() => setSupportModalOpen(true)}
+                className="btn-shimmer inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
+                style={{ background: "linear-gradient(135deg, #E8343A, #E8343ABB)" }}
+              >
+                Открыть FAQ
+                <Icon name="ArrowRight" size={14} />
+              </button>
+            </div>
           </div>
 
           <div className="rounded-2xl p-8 text-center relative overflow-hidden"
