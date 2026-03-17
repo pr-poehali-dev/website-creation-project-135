@@ -36,7 +36,7 @@ export default function BuyModal({ item, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const maxQty = Math.min(item.stock, 10);
+  const maxQty = Math.min(item.stock, 9999);
   const totalUsd = (item.priceUsd * quantity).toFixed(2);
   const totalRub = Math.ceil(item.priceUsd * quantity * USD_TO_RUB);
 
