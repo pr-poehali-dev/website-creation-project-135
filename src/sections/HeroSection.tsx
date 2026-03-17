@@ -38,6 +38,7 @@ export default function HeroSection({ loaded, activeSection, mobileMenuOpen, use
           </div>
 
           <div className="flex items-center gap-2">
+            {/* ПК: кнопки профиль/войти */}
             {user ? (
               <Link to="/profile"
                 className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
@@ -60,9 +61,26 @@ export default function HeroSection({ loaded, activeSection, mobileMenuOpen, use
               style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
               Каталог
             </button>
-            <button className="md:hidden text-white/70 hover:text-white p-2" onClick={onToggleMobile}>
-              <Icon name={mobileMenuOpen ? "X" : "Menu"} size={22} />
-            </button>
+
+            {/* Мобайл: иконка профиль/войти + бургер */}
+            <div className="md:hidden flex items-center gap-1">
+              {user ? (
+                <Link to="/profile"
+                  className="flex items-center justify-center w-9 h-9 rounded-xl font-display font-bold text-sm text-white transition-all hover:scale-105"
+                  style={{ background: "linear-gradient(135deg, #0066FF, #E8343A)" }}>
+                  {user.username[0].toUpperCase()}
+                </Link>
+              ) : (
+                <Link to="/login"
+                  className="flex items-center justify-center w-9 h-9 rounded-xl text-white/70 hover:text-white transition-all"
+                  style={{ border: "1px solid rgba(255,255,255,0.15)" }}>
+                  <Icon name="User" size={16} />
+                </Link>
+              )}
+              <button className="text-white/70 hover:text-white p-2" onClick={onToggleMobile}>
+                <Icon name={mobileMenuOpen ? "X" : "Menu"} size={22} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -74,6 +92,26 @@ export default function HeroSection({ loaded, activeSection, mobileMenuOpen, use
                 {s}
               </button>
             ))}
+            <div className="border-t border-white/5 mt-1 pt-2">
+              {user ? (
+                <Link to="/profile"
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg font-body font-bold text-sm text-white hover:bg-white/5 transition-all"
+                  onClick={onToggleMobile}>
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold"
+                    style={{ background: "linear-gradient(135deg, #0066FF, #E8343A)" }}>
+                    {user.username[0].toUpperCase()}
+                  </div>
+                  {user.username} — Профиль
+                </Link>
+              ) : (
+                <Link to="/login"
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg font-body font-bold text-sm text-white/70 hover:text-white hover:bg-white/5 transition-all"
+                  onClick={onToggleMobile}>
+                  <Icon name="User" size={16} />
+                  Войти в аккаунт
+                </Link>
+              )}
+            </div>
           </div>
         )}
       </nav>
