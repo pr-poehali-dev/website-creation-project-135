@@ -104,6 +104,13 @@ export default function BuyModal({ item, onClose }: Props) {
       });
       const data = await res.json();
       if (data.error) { setError(data.error); setLoading(false); return; }
+      // Сохраняем заказ в localStorage чтобы можно было вернуться
+      localStorage.setItem("cambeck_pending_order", JSON.stringify({
+        order_id: data.order_id,
+        item_name: item.name,
+        amount_usd: data.amount_usd,
+        created_at: new Date().toISOString(),
+      }));
       navigate(`/pay?order_id=${data.order_id}`);
     } catch {
       setError("Ошибка соединения, попробуй ещё раз");

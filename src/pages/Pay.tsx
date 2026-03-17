@@ -131,6 +131,7 @@ export default function Pay() {
       });
       const data = await res.json();
       if (data.status === "paid") {
+        localStorage.removeItem("cambeck_pending_order");
         setOrder(prev => prev ? { ...prev, status: "paid", accounts: data.accounts || [], needs_chat: data.needs_chat, chat_id: data.chat_id } : prev);
       }
     } catch {
