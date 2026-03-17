@@ -114,33 +114,50 @@ export default function Profile() {
           ) : (
             <div className="flex flex-col gap-3">
               {orders.map(o => (
-                <div key={o.order_id} className="rounded-2xl p-4 flex items-center justify-between gap-3"
+                <div key={o.order_id} className="rounded-2xl p-4"
                   style={{ background: "#161F2C", border: `1px solid ${o.status === "paid" ? "rgba(0,176,111,0.2)" : "rgba(255,255,255,0.06)"}` }}>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-body font-bold text-white text-sm truncate">{o.item_name} × {o.quantity}</p>
-                    <p className="font-body text-white/40 text-xs mt-0.5">
-                      {NETWORK_LABELS[o.network] || o.network} • {new Date(o.created_at).toLocaleDateString("ru")}
-                    </p>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-body font-bold text-white text-sm truncate">{o.item_name} × {o.quantity}</p>
+                      <p className="font-body text-white/40 text-xs mt-0.5">
+                        {NETWORK_LABELS[o.network] || o.network} • {new Date(o.created_at).toLocaleDateString("ru")}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="font-display font-bold text-base" style={{ color: "#4DA6FF" }}>
+                        ${o.amount_usd.toFixed(2)}
+                      </span>
+                      <span className="px-2 py-1 rounded-md font-body font-bold text-xs"
+                        style={{
+                          background: o.status === "paid" ? "rgba(0,176,111,0.15)" : "rgba(255,184,0,0.12)",
+                          color: o.status === "paid" ? "#00D080" : "#FFB800",
+                        }}>
+                        {o.status === "paid" ? "✅ Оплачен" : "⏳ Ожидает"}
+                      </span>
+                      {o.status === "pending" && (
+                        <Link to={`/pay?order_id=${o.order_id}`}
+                          className="px-3 py-1.5 rounded-lg font-body font-bold text-xs text-white transition-all hover:scale-105"
+                          style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
+                          Оплатить
+                        </Link>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className="font-display font-bold text-base" style={{ color: "#4DA6FF" }}>
-                      ${o.amount_usd.toFixed(2)}
-                    </span>
-                    <span className="px-2 py-1 rounded-md font-body font-bold text-xs"
-                      style={{
-                        background: o.status === "paid" ? "rgba(0,176,111,0.15)" : "rgba(255,184,0,0.12)",
-                        color: o.status === "paid" ? "#00D080" : "#FFB800",
-                      }}>
-                      {o.status === "paid" ? "✅ Оплачен" : "⏳ Ожидает"}
-                    </span>
-                    {o.status === "pending" && (
-                      <Link to={`/pay?order_id=${o.order_id}`}
-                        className="px-3 py-1.5 rounded-lg font-body font-bold text-xs text-white transition-all hover:scale-105"
+                  {/* Кнопка чата для оплаченных заказов ручной выдачи */}
+                  {o.status === "paid" && !o.game?.includes("steal") && (
+                    <div className="mt-3 pt-3 border-t border-white/5">
+                      <button
+                        onClick={() => {
+                          localStorage.setItem("cambeck_open_chat", "1");
+                          navigate("/");
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg font-body font-bold text-sm text-white transition-all hover:scale-105"
                         style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
-                        Оплатить
-                      </Link>
-                    )}
-                  </div>
+                        <Icon name="MessageCircle" size={14} />
+                        💬 Открыть чат с продавцом
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

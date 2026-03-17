@@ -7,7 +7,7 @@ type User = { id: string; username: string; email: string; created_at?: string }
 type Order = {
   order_id: string; item_name: string; amount_usd: number;
   quantity: number; network: string; status: string;
-  created_at: string; paid_at?: string;
+  created_at: string; paid_at?: string; game?: string;
 };
 
 type PaidItem = { order_id: string; item_name: string; accounts: string[] };

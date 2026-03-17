@@ -152,14 +152,15 @@ def handler(event: dict, context) -> dict:
         user_id = str(row[0])
 
         # Получаем историю заказов
-        cur.execute("""
-            SELECT id, item_name, price_usd, quantity, crypto_network, status, created_at, paid_at
-            FROM orders WHERE user_id = %s ORDER BY created_at DESC LIMIT 50
+        schema = os.environ.get("MAIN_DB_SCHEMA", "public")
+        cur.execute(f"""
+            SELECT id, item_name, price_usd, quantity, crypto_network, status, created_at, paid_at, game
+            FROM {schema}.orders WHERE user_id = %s ORDER BY created_at DESC LIMIT 50
         """, (user_id,))
         orders = [{
             "order_id": str(r[0]), "item_name": r[1], "amount_usd": float(r[2]),
             "quantity": r[3], "network": r[4], "status": r[5],
-            "created_at": r[6], "paid_at": r[7]
+            "created_at": r[6], "paid_at": r[7], "game": r[8]
         } for r in cur.fetchall()]
 
         # Для оплаченных заказов — полученные аккаунты

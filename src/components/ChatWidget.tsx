@@ -77,6 +77,11 @@ export default function ChatWidget() {
       setOpen(true);
       setActiveTab("chat");
     }
+    if (localStorage.getItem("cambeck_open_chat_tab") === "orders") {
+      localStorage.removeItem("cambeck_open_chat_tab");
+      setOpen(true);
+      setActiveTab("orders");
+    }
     // Загружаем незавершённый заказ
     const raw = localStorage.getItem("cambeck_pending_order");
     if (raw) {
@@ -339,14 +344,23 @@ export default function ChatWidget() {
                       <div className="font-body text-white/30 text-xs mb-3">
                         {order.network} • {age < 1 ? "только что" : `${age} мин назад`}
                       </div>
-                      <Link
-                        to={`/pay?order_id=${order.order_id}`}
-                        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
-                        style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}
-                        onClick={() => setOpen(false)}>
-                        <Icon name="CreditCard" size={15} />
-                        Перейти к оплате
-                      </Link>
+                      <div className="flex gap-2">
+                        <Link
+                          to={`/pay?order_id=${order.order_id}`}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
+                          style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}
+                          onClick={() => setOpen(false)}>
+                          <Icon name="CreditCard" size={14} />
+                          Оплатить
+                        </Link>
+                        <button
+                          onClick={() => setActiveTab("chat")}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
+                          style={{ background: "rgba(0,102,255,0.2)", border: "1px solid rgba(0,102,255,0.3)" }}>
+                          <Icon name="MessageCircle" size={14} />
+                          Чат
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
