@@ -1,0 +1,28 @@
+{
+  "tests": [
+    {
+      "name": "Login admin",
+      "method": "POST",
+      "path": "/?action=login",
+      "body": {"login": "Cambeck", "password": "M23092009C"},
+      "expectedStatus": 200,
+      "expectedBody": {"token": "admin_Cambeck_token_cambeck"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Login wrong password",
+      "method": "POST",
+      "path": "/?action=login",
+      "body": {"login": "Cambeck", "password": "wrong"},
+      "expectedStatus": 401,
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get chats without token",
+      "method": "GET",
+      "path": "/?action=chats",
+      "expectedStatus": 403,
+      "bodyMatcher": "partial"
+    }
+  ]
+}
