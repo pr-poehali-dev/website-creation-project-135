@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS item_prices (
+  item_id INTEGER PRIMARY KEY,
+  price_usd NUMERIC(10,2) NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);

@@ -462,4 +462,32 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return ok({"success": True})
 
+    # POST set_price — установить цену товара (admin)
+    if method == "POST" and action == "set_price":
+        if not is_admin:
+            return err("Нет доступа", 403)
+        item_id = body.get("item_id")
+        price_usd = body.get("price_usd")
+        if not item_id or price_usd is None:
+            return err("Нужны item_id и price_usd")
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO item_prices (item_id, price_usd, updated_at)
+            VALUES (%s, %s, NOW())
+            ON CONFLICT (item_id) DO UPDATE SET price_usd = EXCLUDED.price_usd, updated_at = NOW()
+        """, (item_id, float(price_usd)))
+        conn.commit()
+        conn.close()
+        return ok({"success": True, "item_id": item_id, "price_usd": float(price_usd)})
+
+    # GET prices — получить все цены (публичный)
+    if method == "GET" and action == "prices":
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("SELECT item_id, price_usd FROM item_prices")
+        rows = cur.fetchall()
+        conn.close()
+        return ok({"prices": {str(r[0]): float(r[1]) for r in rows}})
+
     return err("Неизвестный action", 404)

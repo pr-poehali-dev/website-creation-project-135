@@ -5,6 +5,8 @@ import Icon from "@/components/ui/icon";
 import BuyModal from "@/components/BuyModal";
 import { useAuth } from "@/context/AuthContext";
 
+const ORDERS_URL = "https://functions.poehali.dev/f852d147-eae1-4265-a94d-63d014c42231";
+
 const HERO_IMG = "https://cdn.poehali.dev/projects/55eebfd7-5c19-4adf-ae5d-100fe458b847/files/063fb226-d199-4cc0-8b87-e4836625f644.jpg";
 const ITEMS_IMG = "https://cdn.poehali.dev/projects/55eebfd7-5c19-4adf-ae5d-100fe458b847/files/34974bc9-8d1b-47ea-a085-b096136f7c56.jpg";
 
@@ -146,10 +148,14 @@ export default function Index() {
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [supportModalOpen, setSupportModalOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
-
+  const [dbPrices, setDbPrices] = useState<Record<string, number>>({});
 
   useEffect(() => {
     setLoaded(true);
+    fetch(`${ORDERS_URL}?action=prices`)
+      .then(r => r.json())
+      .then(d => { if (d.prices) setDbPrices(d.prices); })
+      .catch(() => {});
   }, []);
 
   const scrollTo = (id: string) => {
@@ -353,7 +359,7 @@ export default function Index() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {catalogItems.filter(i => i.category === "lucky").map((item) => (
-                <CatalogCard key={item.id} item={item} />
+                <CatalogCard key={item.id} item={{ ...item, priceUsd: dbPrices[String(item.id)] ?? item.priceUsd }} />
               ))}
             </div>
           </div>

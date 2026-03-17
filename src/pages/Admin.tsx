@@ -155,6 +155,10 @@ export default function Admin() {
   const [newCredentials, setNewCredentials] = useState("");
   const [addingStock, setAddingStock] = useState(false);
   const [stockMsg, setStockMsg] = useState("");
+  const [itemPrices, setItemPrices] = useState<Record<string, number>>({});
+  const [editingPrice, setEditingPrice] = useState<string>("");
+  const [savingPrice, setSavingPrice] = useState(false);
+  const [priceMsg, setPriceMsg] = useState("");
 
   const isAuthed = !!token;
 
@@ -163,6 +167,7 @@ export default function Admin() {
     fetchChats();
     fetchOrders();
     fetchStockSummary();
+    fetchPrices();
     const interval = setInterval(() => { fetchChats(); fetchOrders(); }, 5000);
     return () => clearInterval(interval);
   }, [isAuthed]);
@@ -179,6 +184,14 @@ export default function Admin() {
   }, [messages]);
 
   useEffect(() => {
+    if (selectedItemId !== null && selectedItemId > 0) {
+      fetchItemAccounts(selectedItemId);
+      const currentPrice = itemPrices[String(selectedItemId)];
+      const catalogItem = CATALOG_ITEMS.find(i => i.id === selectedItemId);
+      if (currentPrice) setEditingPrice(String(currentPrice));
+      else if (catalogItem) setEditingPrice("");
+      setPriceMsg("");
+    }
     if (selectedItemId !== null) fetchItemAccounts(selectedItemId);
   }, [selectedItemId]);
 
@@ -253,6 +266,32 @@ export default function Admin() {
     const res = await fetch(`${ORDERS_URL}?action=stock`, { headers: { "X-Admin-Token": token } });
     const data = await res.json();
     if (data.stock) setStockSummary(data.stock);
+  }
+
+  async function fetchPrices() {
+    const res = await fetch(`${ORDERS_URL}?action=prices`);
+    const data = await res.json();
+    if (data.prices) setItemPrices(data.prices);
+  }
+
+  async function savePrice(itemId: number) {
+    if (!editingPrice.trim()) return;
+    setSavingPrice(true);
+    setPriceMsg("");
+    const res = await fetch(`${ORDERS_URL}?action=set_price`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+      body: JSON.stringify({ item_id: itemId, price_usd: parseFloat(editingPrice) }),
+    });
+    const data = await res.json();
+    setSavingPrice(false);
+    if (data.success) {
+      setPriceMsg("✅ Цена сохранена");
+      fetchPrices();
+      setTimeout(() => setPriceMsg(""), 2000);
+    } else {
+      setPriceMsg("❌ Ошибка сохранения");
+    }
   }
 
   async function fetchItemAccounts(itemId: number) {
@@ -503,6 +542,38 @@ export default function Admin() {
                       Доступно: {getStockForItem(selectedItemId)?.available ?? 0} / {getStockForItem(selectedItemId)?.total ?? 0}
                     </p>
                   </div>
+                </div>
+
+                {/* Изменить цену */}
+                <div className="rounded-2xl p-4 mb-4"
+                  style={{ background: "#161F2C", border: "1px solid rgba(255,184,0,0.2)" }}>
+                  <p className="font-body text-white/60 text-xs mb-3 font-bold uppercase tracking-wider">💰 Цена товара</p>
+                  <div className="flex items-center gap-3">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 font-body text-white/40 text-sm">$</span>
+                      <input
+                        type="number" step="0.01" min="0.01"
+                        value={editingPrice}
+                        onChange={e => setEditingPrice(e.target.value)}
+                        placeholder={String(CATALOG_ITEMS.find(i => i.id === selectedItemId)?.name ? "0.00" : "0.00")}
+                        className="w-full pl-7 pr-3 py-2.5 rounded-xl font-body text-sm text-white outline-none"
+                        style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,184,0,0.3)" }}
+                      />
+                    </div>
+                    <button
+                      onClick={() => savePrice(selectedItemId!)}
+                      disabled={savingPrice || !editingPrice.trim()}
+                      className="px-5 py-2.5 rounded-xl font-body font-bold text-sm text-white disabled:opacity-40 whitespace-nowrap"
+                      style={{ background: "linear-gradient(135deg, #FFB800, #FF6B00)", color: "#0F1923" }}>
+                      {savingPrice ? "..." : "Сохранить"}
+                    </button>
+                  </div>
+                  {priceMsg && <p className="font-body text-xs mt-2" style={{ color: priceMsg.startsWith("✅") ? "#00D080" : "#FF6B6B" }}>{priceMsg}</p>}
+                  {itemPrices[String(selectedItemId)] && (
+                    <p className="font-body text-white/30 text-xs mt-1">
+                      Текущая цена в БД: <b className="text-yellow-400">${itemPrices[String(selectedItemId)]}</b>
+                    </p>
+                  )}
                 </div>
 
                 {/* Добавить аккаунты */}
