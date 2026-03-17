@@ -55,7 +55,7 @@ export default function Pay() {
     if (!order) return;
     fetchRate(order.network);
     // Обновляем курс каждые 2 минуты
-    const interval = setInterval(() => fetchRate(order.network), 120000);
+    const interval = setInterval(() => fetchRate(order.network), 1800000);
     return () => clearInterval(interval);
   }, [order?.network]);
 
