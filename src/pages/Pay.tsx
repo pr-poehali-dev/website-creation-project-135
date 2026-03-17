@@ -73,7 +73,19 @@ export default function Pay() {
 
   async function checkPayment() {
     setChecking(true);
-    await fetchStatus();
+    try {
+      const res = await fetch(`${ORDERS_URL}?action=check`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order_id: orderId }),
+      });
+      const data = await res.json();
+      if (data.status === "paid") {
+        setOrder(prev => prev ? { ...prev, status: "paid", accounts: data.accounts || [] } : prev);
+      }
+    } catch {
+      // ignore
+    }
     setChecking(false);
   }
 

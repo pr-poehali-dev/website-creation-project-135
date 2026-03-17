@@ -239,7 +239,7 @@ def handler(event: dict, context) -> dict:
             "has_accounts": available > 0,
         })
 
-    # GET status — статус + автопроверка блокчейна
+    # GET status — только статус из БД, без проверки блокчейна
     if method == "GET" and action == "status":
         order_id = params.get("order_id")
         if not order_id:
@@ -256,7 +256,6 @@ def handler(event: dict, context) -> dict:
             conn.close()
             return err("Заказ не найден", 404)
 
-        db_item_id = row[1]
         order = {
             "order_id": str(row[0]),
             "item_name": row[2],
@@ -269,15 +268,6 @@ def handler(event: dict, context) -> dict:
             "paid_at": row[8],
         }
 
-        # Если заказ pending — автоматически проверяем блокчейн
-        if order["status"] == "pending":
-            paid = verify_crypto_payment(order["network"], order["address"], order["amount_usd"])
-            if paid:
-                issue_accounts(cur, order_id, db_item_id, order["quantity"])
-                cur.execute("UPDATE orders SET status = 'paid', paid_at = NOW() WHERE id = %s", (order_id,))
-                conn.commit()
-                order["status"] = "paid"
-
         accounts = []
         if order["status"] == "paid":
             cur.execute("SELECT credentials FROM stock_accounts WHERE order_id = %s", (order_id,))
@@ -285,6 +275,48 @@ def handler(event: dict, context) -> dict:
 
         conn.close()
         return ok({**order, "accounts": accounts})
+
+    # POST check — проверка блокчейна по запросу покупателя (кнопка "Я оплатил")
+    if method == "POST" and action == "check":
+        order_id = body.get("order_id")
+        if not order_id:
+            return err("Нет order_id")
+
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, item_id, price_usd, quantity, crypto_network, crypto_address, status FROM orders WHERE id = %s",
+            (order_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            conn.close()
+            return err("Заказ не найден", 404)
+
+        if row[6] == "paid":
+            cur.execute("SELECT credentials FROM stock_accounts WHERE order_id = %s", (order_id,))
+            accounts = [r[0] for r in cur.fetchall()]
+            conn.close()
+            return ok({"status": "paid", "accounts": accounts})
+
+        db_item_id = row[1]
+        amount_usd = float(row[2])
+        quantity = row[3]
+        network = row[4]
+        address = row[5]
+
+        paid = verify_crypto_payment(network, address, amount_usd)
+        if paid:
+            issue_accounts(cur, order_id, db_item_id, quantity)
+            cur.execute("UPDATE orders SET status = 'paid', paid_at = NOW() WHERE id = %s", (order_id,))
+            conn.commit()
+            cur.execute("SELECT credentials FROM stock_accounts WHERE order_id = %s", (order_id,))
+            accounts = [r[0] for r in cur.fetchall()]
+            conn.close()
+            return ok({"status": "paid", "accounts": accounts})
+
+        conn.close()
+        return ok({"status": "pending", "accounts": []})
 
     # POST confirm — ручное подтверждение (admin)
     if method == "POST" and action == "confirm":
