@@ -4,89 +4,44 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 220 30% 8%;
+    --foreground: 210 40% 98%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 220 25% 12%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 220 25% 12%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 210 100% 56%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 0 90% 55%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 220 20% 18%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 45 100% 55%;
+    --accent-foreground: 220 30% 8%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 220 20% 20%;
+    --input: 220 20% 20%;
+    --ring: 210 100% 56%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Roblox brand colors */
+    --roblox-blue: #0066ff;
+    --roblox-red: #e8343a;
+    --roblox-yellow: #ffb800;
+    --roblox-green: #00b06f;
+    --roblox-dark: #0f1923;
+    --roblox-card: #161f2c;
+    --roblox-border: #1e2d3d;
   }
 }
 
@@ -97,5 +52,340 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: "Nunito", sans-serif;
+    background-color: #0f1923;
+    background-image:
+      radial-gradient(
+        ellipse at 20% 20%,
+        rgba(0, 102, 255, 0.08) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        ellipse at 80% 80%,
+        rgba(232, 52, 58, 0.06) 0%,
+        transparent 50%
+      );
+    background-attachment: fixed;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: "Oswald", sans-serif;
+  }
+
+  .font-body {
+    font-family: "Nunito", sans-serif;
+  }
+
+  .roblox-gradient {
+    background: linear-gradient(135deg, #0066ff 0%, #0044bb 50%, #e8343a 100%);
+  }
+
+  .roblox-text-gradient {
+    background: linear-gradient(135deg, #4da6ff 0%, #ff6b6b 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .card-glow-blue {
+    box-shadow:
+      0 0 20px rgba(0, 102, 255, 0.15),
+      0 4px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .card-glow-red {
+    box-shadow:
+      0 0 20px rgba(232, 52, 58, 0.15),
+      0 4px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .card-glow-yellow {
+    box-shadow:
+      0 0 20px rgba(255, 184, 0, 0.2),
+      0 4px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .pixel-border {
+    border: 2px solid rgba(0, 102, 255, 0.4);
+  }
+
+  .glass-card {
+    background: rgba(22, 31, 44, 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .nav-active {
+    color: #4da6ff;
+    border-bottom: 2px solid #0066ff;
+  }
+
+  .hover-lift {
+    transition:
+      transform 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-4px);
+  }
+
+  .badge-new {
+    background: linear-gradient(135deg, #ffb800, #ff6b00);
+    color: #0f1923;
+    font-weight: 800;
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .badge-hot {
+    background: linear-gradient(135deg, #e8343a, #ff6b00);
+    color: white;
+    font-weight: 800;
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .badge-sale {
+    background: linear-gradient(135deg, #00b06f, #007a4d);
+    color: white;
+    font-weight: 800;
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .section-title {
+    font-family: "Oswald", sans-serif;
+    font-size: 2.5rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  .pixel-divider {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      #0066ff,
+      #e8343a,
+      #ffb800,
+      transparent
+    );
+    height: 2px;
+    border: none;
+  }
+}
+
+/* Animations */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-12px) rotate(2deg);
+  }
+  66% {
+    transform: translateY(-6px) rotate(-1deg);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 15px rgba(0, 102, 255, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 0 35px rgba(0, 102, 255, 0.6),
+      0 0 60px rgba(0, 102, 255, 0.2);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes bounce-in {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pixel-glitch {
+  0%,
+  90%,
+  100% {
+    transform: translate(0);
+  }
+  92% {
+    transform: translate(-2px, 1px);
+  }
+  94% {
+    transform: translate(2px, -1px);
+  }
+  96% {
+    transform: translate(-1px, 2px);
+  }
+}
+
+.animate-float {
+  animation: float 5s ease-in-out infinite;
+}
+.animate-float-delay {
+  animation: float 5s ease-in-out infinite 1.5s;
+}
+.animate-float-delay-2 {
+  animation: float 5s ease-in-out infinite 3s;
+}
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+.animate-slide-down {
+  animation: slide-down 0.5s ease-out forwards;
+}
+.animate-slide-up {
+  animation: slide-up 0.6s ease-out forwards;
+}
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+.animate-bounce-in {
+  animation: bounce-in 0.5s ease-out forwards;
+}
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+.animate-pixel-glitch {
+  animation: pixel-glitch 4s ease-in-out infinite;
+}
+
+.stagger-1 {
+  animation-delay: 0.1s;
+  opacity: 0;
+}
+.stagger-2 {
+  animation-delay: 0.2s;
+  opacity: 0;
+}
+.stagger-3 {
+  animation-delay: 0.3s;
+  opacity: 0;
+}
+.stagger-4 {
+  animation-delay: 0.4s;
+  opacity: 0;
+}
+.stagger-5 {
+  animation-delay: 0.5s;
+  opacity: 0;
+}
+.stagger-6 {
+  animation-delay: 0.6s;
+  opacity: 0;
+}
+
+/* Shimmer effect for buttons */
+.btn-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  animation: shimmer 2.5s infinite;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0f1923;
+}
+::-webkit-scrollbar-thumb {
+  background: #0066ff;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #4da6ff;
 }
