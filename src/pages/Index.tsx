@@ -16,24 +16,19 @@ type CatalogItem = {
 };
 
 const catalogItems: CatalogItem[] = [
-  { id: 1,  name: "Secret Lucky Block",           priceUsd: 1.45, stock: 0,   emoji: "🎲", category: "lucky" },
-  { id: 2,  name: "los Tacos Lucky Block 300m",   priceUsd: 0.80, stock: 62,  emoji: "🌮", category: "lucky" },
-  { id: 3,  name: "Heart Lucky Blocks",           priceUsd: 1.00, stock: 0,   emoji: "❤️", category: "lucky" },
-  { id: 4,  name: "Quesadilla Crocodila",         priceUsd: 1.60, stock: 64,  emoji: "🐊", category: "lucky" },
-  { id: 5,  name: "Burrito Bandito",              priceUsd: 1.60, stock: 42,  emoji: "🌯", category: "lucky" },
+  { id: 1,  name: "Secret Lucky Block",           priceUsd: 1.70, stock: 0,   emoji: "🎲", category: "lucky" },
+  { id: 2,  name: "los Tacos Lucky Block 300m",   priceUsd: 1.20, stock: 62,  emoji: "🌮", category: "lucky" },
+  { id: 3,  name: "Heart Lucky Blocks",           priceUsd: 1.30, stock: 0,   emoji: "❤️", category: "lucky" },
+  { id: 4,  name: "Quesadilla Crocodila",         priceUsd: 1.90, stock: 64,  emoji: "🐊", category: "lucky" },
+  { id: 5,  name: "Burrito Bandito",              priceUsd: 1.90, stock: 42,  emoji: "🌯", category: "lucky" },
   { id: 6,  name: "Los Quesadilla",               priceUsd: 1.80, stock: 0,   emoji: "🧀", category: "lucky" },
-  { id: 7,  name: "Chicleteira Bicicleteira",     priceUsd: 1.20, stock: 52,  emoji: "🚲", category: "lucky" },
-  { id: 8,  name: "67",                           priceUsd: 1.80, stock: 226, emoji: "🎯", category: "lucky" },
-  { id: 9,  name: "La Grande Combinasion",        priceUsd: 1.90, stock: 191, emoji: "✨", category: "lucky" },
-  { id: 10, name: "Los Nooo My Hotsportsitos",    priceUsd: 2.10, stock: 49,  emoji: "🌶️", category: "lucky" },
-  { id: 11, name: "Random PACK SAB",              priceUsd: 0.35, stock: 0,   emoji: "📦", category: "lucky" },
+  { id: 7,  name: "Chicleteira Bicicleteira",     priceUsd: 1.50, stock: 52,  emoji: "🚲", category: "lucky" },
+  { id: 8,  name: "67",                           priceUsd: 2.50, stock: 226, emoji: "🎯", category: "lucky" },
+  { id: 9,  name: "La Grande Combinasion",        priceUsd: 2.30, stock: 190, emoji: "✨", category: "lucky" },
+  { id: 10, name: "Los Nooo My Hotsportsitos",    priceUsd: 2.50, stock: 49,  emoji: "🌶️", category: "lucky" },
+  { id: 11, name: "Random PACK SAB",              priceUsd: 0.50, stock: 0,   emoji: "📦", category: "lucky" },
   { id: 12, name: "Divine Secret Lucky Block",    priceUsd: 6.00, stock: 0,   emoji: "🔮", category: "lucky" },
-  { id: 13, name: "Leprechaun Lucky Block",       priceUsd: 1.15, stock: 0,   emoji: "🍀", category: "lucky" },
-  { id: 14, name: "Heart Wand mm2",               priceUsd: 2.50, stock: 0,   emoji: "💝", category: "other" },
-  { id: 15, name: "Godhuman + max level",         priceUsd: 0.30, stock: 69,  emoji: "⚡", category: "other" },
-  { id: 16, name: "Godmax + 1 mythical fruit",    priceUsd: 0.33, stock: 0,   emoji: "🍎", category: "other" },
-  { id: 17, name: "God cdk sgt fg v4 rd races",   priceUsd: 1.50, stock: 0,   emoji: "🏎️", category: "other" },
-  { id: 18, name: "God cdk sgt fg v4 ghoul",      priceUsd: 1.70, stock: 0,   emoji: "👻", category: "other" },
+  { id: 13, name: "Leprechaun Lucky Block",       priceUsd: 1.40, stock: 0,   emoji: "🍀", category: "lucky" },
 ];
 
 const reviews = [
@@ -287,22 +282,6 @@ export default function Index() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {catalogItems.filter(i => i.category === "lucky").map((item) => (
-                <CatalogCard key={item.id} item={item} />
-              ))}
-            </div>
-          </div>
-
-          {/* Other Games */}
-          <div className="mb-10">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="px-3 py-1 rounded-lg font-display font-bold text-sm text-white"
-                style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
-                🎮 OTHER GAME STOCK
-              </div>
-              <div className="flex-1 h-px" style={{ background: "rgba(0,102,255,0.2)" }} />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {catalogItems.filter(i => i.category === "other").map((item) => (
                 <CatalogCard key={item.id} item={item} />
               ))}
             </div>
