@@ -25,6 +25,25 @@ CRYPTO_LABELS = {
 def get_conn():
     return psycopg2.connect(os.environ["DATABASE_URL"])
 
+def create_support_chat(cur, order_id: str, item_name: str, visitor_id: str, visitor_name: str) -> str:
+    """Создаём чат поддержки для ручной выдачи товара"""
+    schema = os.environ.get("MAIN_DB_SCHEMA", "public")
+    # Ищем существующий открытый чат этого покупателя
+    cur.execute(f"SELECT id FROM {schema}.chats WHERE visitor_id = %s AND status = 'open' ORDER BY created_at DESC LIMIT 1", (visitor_id,))
+    row = cur.fetchone()
+    if row:
+        chat_id = str(row[0])
+    else:
+        cur.execute(f"INSERT INTO {schema}.chats (visitor_id, visitor_name, status) VALUES (%s, %s, 'open') RETURNING id", (visitor_id, visitor_name))
+        chat_id = str(cur.fetchone()[0])
+    # Первое сообщение от системы
+    first_msg = f"✅ Оплата получена! Товар: {item_name}\n\nПродавец скоро выйдет на связь и передаст товар через игру. Ожидайте."
+    cur.execute(f"INSERT INTO {schema}.messages (chat_id, sender, text) VALUES (%s, 'admin', %s)", (chat_id, first_msg))
+    cur.execute(f"UPDATE {schema}.chats SET updated_at = NOW(), last_message = %s WHERE id = %s", (first_msg[:100], chat_id))
+    # Сохраняем chat_id в заказе
+    cur.execute(f"UPDATE {schema}.orders SET chat_id = %s WHERE id = %s", (chat_id, order_id))
+    return chat_id
+
 def cors():
     return {
         "Access-Control-Allow-Origin": "*",
@@ -233,6 +252,9 @@ def handler(event: dict, context) -> dict:
         price_usd = body.get("price_usd")
         quantity = int(body.get("quantity", 1))
         network = body.get("network")
+        game = body.get("game", "steal-a-brainrot")
+        visitor_id = body.get("visitor_id", "")
+        visitor_name = body.get("visitor_name", "Покупатель")
 
         if not all([item_id, item_name, price_usd, network]):
             return err("Не все поля заполнены")
@@ -241,6 +263,7 @@ def handler(event: dict, context) -> dict:
 
         conn = get_conn()
         cur = conn.cursor()
+        schema = os.environ.get("MAIN_DB_SCHEMA", "public")
         cur.execute("SELECT COUNT(*) FROM stock_accounts WHERE item_id = %s AND is_sold = FALSE", (item_id,))
         available = cur.fetchone()[0]
 
@@ -253,8 +276,8 @@ def handler(event: dict, context) -> dict:
         user_id = get_user_id_from_token(conn, auth_token)
 
         cur.execute(
-            "INSERT INTO orders (item_id, item_name, price_usd, quantity, crypto_network, crypto_address, status, user_id) VALUES (%s, %s, %s, %s, %s, %s, 'pending', %s) RETURNING id, created_at",
-            (item_id, item_name, total_usd, quantity, network, address, user_id)
+            f"INSERT INTO {schema}.orders (item_id, item_name, price_usd, quantity, crypto_network, crypto_address, status, user_id, game) VALUES (%s, %s, %s, %s, %s, %s, 'pending', %s, %s) RETURNING id, created_at",
+            (item_id, item_name, total_usd, quantity, network, address, user_id, game)
         )
         order_id, created_at = cur.fetchone()
         conn.commit()
@@ -270,6 +293,7 @@ def handler(event: dict, context) -> dict:
             "quantity": quantity,
             "created_at": created_at,
             "has_accounts": available > 0,
+            "game": game,
         })
 
     # GET status — только статус из БД, без проверки блокчейна
@@ -312,13 +336,16 @@ def handler(event: dict, context) -> dict:
     # POST check — проверка блокчейна по запросу покупателя (кнопка "Я оплатил")
     if method == "POST" and action == "check":
         order_id = body.get("order_id")
+        visitor_id = body.get("visitor_id", "anonymous")
+        visitor_name = body.get("visitor_name", "Покупатель")
         if not order_id:
             return err("Нет order_id")
 
         conn = get_conn()
         cur = conn.cursor()
+        schema = os.environ.get("MAIN_DB_SCHEMA", "public")
         cur.execute(
-            "SELECT id, item_id, price_usd, quantity, crypto_network, crypto_address, status, created_at FROM orders WHERE id = %s",
+            f"SELECT id, item_id, item_name, price_usd, quantity, crypto_network, crypto_address, status, created_at, game, chat_id FROM {schema}.orders WHERE id = %s",
             (order_id,)
         )
         row = cur.fetchone()
@@ -326,20 +353,26 @@ def handler(event: dict, context) -> dict:
             conn.close()
             return err("Заказ не найден", 404)
 
-        if row[6] == "paid":
-            cur.execute("SELECT credentials FROM stock_accounts WHERE order_id = %s", (order_id,))
-            accounts = [r[0] for r in cur.fetchall()]
+        order_game = row[9] or "steal-a-brainrot"
+        existing_chat_id = str(row[10]) if row[10] else None
+
+        if row[7] == "paid":
+            accounts = []
+            chat_id = existing_chat_id
+            if order_game == "steal-a-brainrot":
+                cur.execute(f"SELECT credentials FROM stock_accounts WHERE order_id = %s", (order_id,))
+                accounts = [r[0] for r in cur.fetchall()]
             conn.close()
-            return ok({"status": "paid", "accounts": accounts})
+            return ok({"status": "paid", "accounts": accounts, "chat_id": chat_id, "needs_chat": order_game != "steal-a-brainrot"})
 
         db_item_id = row[1]
-        amount_usd = float(row[2])
-        quantity = row[3]
-        network = row[4]
-        address = row[5]
-        # Время создания заказа — ищем только транзакции ПОСЛЕ этого момента
+        item_name = row[2]
+        amount_usd = float(row[3])
+        quantity = row[4]
+        network = row[5]
+        address = row[6]
         import datetime
-        created_at = row[7]
+        created_at = row[8]
         if hasattr(created_at, 'timestamp'):
             created_ts = int(created_at.timestamp())
         else:
@@ -347,16 +380,24 @@ def handler(event: dict, context) -> dict:
 
         paid = verify_crypto_payment(network, address, amount_usd, created_ts)
         if paid:
-            issue_accounts(cur, order_id, db_item_id, quantity)
-            cur.execute("UPDATE orders SET status = 'paid', paid_at = NOW() WHERE id = %s", (order_id,))
-            conn.commit()
-            cur.execute("SELECT credentials FROM stock_accounts WHERE order_id = %s", (order_id,))
-            accounts = [r[0] for r in cur.fetchall()]
+            accounts = []
+            chat_id = None
+            if order_game == "steal-a-brainrot":
+                issue_accounts(cur, order_id, db_item_id, quantity)
+                cur.execute(f"UPDATE {schema}.orders SET status = 'paid', paid_at = NOW() WHERE id = %s", (order_id,))
+                conn.commit()
+                cur.execute(f"SELECT credentials FROM stock_accounts WHERE order_id = %s", (order_id,))
+                accounts = [r[0] for r in cur.fetchall()]
+            else:
+                cur.execute(f"UPDATE {schema}.orders SET status = 'paid', paid_at = NOW() WHERE id = %s", (order_id,))
+                conn.commit()
+                chat_id = create_support_chat(cur, order_id, item_name, visitor_id, visitor_name)
+                conn.commit()
             conn.close()
-            return ok({"status": "paid", "accounts": accounts})
+            return ok({"status": "paid", "accounts": accounts, "chat_id": chat_id, "needs_chat": order_game != "steal-a-brainrot"})
 
         conn.close()
-        return ok({"status": "pending", "accounts": []})
+        return ok({"status": "pending", "accounts": [], "needs_chat": False})
 
     # POST confirm — ручное подтверждение (admin)
     if method == "POST" and action == "confirm":
@@ -369,23 +410,35 @@ def handler(event: dict, context) -> dict:
 
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute("SELECT id, item_id, quantity, status FROM orders WHERE id = %s", (order_id,))
+        schema = os.environ.get("MAIN_DB_SCHEMA", "public")
+        cur.execute(f"SELECT id, item_id, item_name, quantity, status, game FROM {schema}.orders WHERE id = %s", (order_id,))
         row = cur.fetchone()
         if not row:
             conn.close()
             return err("Заказ не найден", 404)
-        if row[3] == "paid":
+        if row[4] == "paid":
             conn.close()
             return err("Заказ уже оплачен")
 
-        issue_accounts(cur, order_id, row[1], row[2])
-        cur.execute("UPDATE orders SET status = 'paid', paid_at = NOW(), tx_hash = %s WHERE id = %s", (tx_hash, order_id))
-        conn.commit()
+        order_game = row[5] or "steal-a-brainrot"
+        item_name = row[2]
+        accounts = []
+        chat_id = None
 
-        cur.execute("SELECT credentials FROM stock_accounts WHERE order_id = %s", (order_id,))
-        accounts = [r[0] for r in cur.fetchall()]
+        if order_game == "steal-a-brainrot":
+            issue_accounts(cur, order_id, row[1], row[3])
+            cur.execute(f"UPDATE {schema}.orders SET status = 'paid', paid_at = NOW(), tx_hash = %s WHERE id = %s", (tx_hash, order_id))
+            conn.commit()
+            cur.execute(f"SELECT credentials FROM stock_accounts WHERE order_id = %s", (order_id,))
+            accounts = [r[0] for r in cur.fetchall()]
+        else:
+            cur.execute(f"UPDATE {schema}.orders SET status = 'paid', paid_at = NOW(), tx_hash = %s WHERE id = %s", (tx_hash, order_id))
+            conn.commit()
+            chat_id = create_support_chat(cur, order_id, item_name, f"order_{order_id}", f"Заказ #{order_id[:8]}")
+            conn.commit()
+
         conn.close()
-        return ok({"success": True, "accounts_issued": len(accounts), "accounts": accounts})
+        return ok({"success": True, "accounts_issued": len(accounts), "accounts": accounts, "chat_id": chat_id, "needs_chat": order_game != "steal-a-brainrot"})
 
     # GET list — заказы для admin
     if method == "GET" and action == "list":

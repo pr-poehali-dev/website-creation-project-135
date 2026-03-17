@@ -19,6 +19,7 @@ type Item = {
   name: string;
   priceUsd: number;
   stock: number;
+  game?: string;
 };
 
 type Props = {
@@ -77,6 +78,8 @@ export default function BuyModal({ item, onClose }: Props) {
     try {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (token) headers["X-Auth-Token"] = token;
+      let visitorId = localStorage.getItem("cambeck_visitor_id");
+      if (!visitorId) { visitorId = Math.random().toString(36).slice(2) + Date.now(); localStorage.setItem("cambeck_visitor_id", visitorId); }
       const res = await fetch(`${ORDERS_URL}?action=create`, {
         method: "POST",
         headers,
@@ -86,6 +89,9 @@ export default function BuyModal({ item, onClose }: Props) {
           price_usd: item.priceUsd,
           quantity,
           network,
+          game: item.game || "steal-a-brainrot",
+          visitor_id: visitorId,
+          visitor_name: user?.name || "Покупатель",
         }),
       });
       const data = await res.json();

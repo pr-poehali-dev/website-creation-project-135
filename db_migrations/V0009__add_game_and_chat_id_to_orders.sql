@@ -1,0 +1,3 @@
+ALTER TABLE t_p41710039_website_creation_pro.orders
+  ADD COLUMN IF NOT EXISTS game TEXT,
+  ADD COLUMN IF NOT EXISTS chat_id UUID;

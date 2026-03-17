@@ -28,6 +28,11 @@ export default function ChatWidget() {
   useEffect(() => {
     const saved = localStorage.getItem("cambeck_visitor_name");
     if (saved) { setVisitorName(saved); setNameEntered(true); }
+    // Автооткрытие после оплаты не-brainrot товара
+    if (localStorage.getItem("cambeck_open_chat") === "1") {
+      localStorage.removeItem("cambeck_open_chat");
+      setOpen(true);
+    }
   }, []);
 
   useEffect(() => {

@@ -28,6 +28,9 @@ type OrderData = {
   quantity: number;
   status: string;
   accounts: string[];
+  needs_chat?: boolean;
+  chat_id?: string | null;
+  game?: string;
 };
 
 export default function Pay() {
@@ -112,17 +115,23 @@ export default function Pay() {
     setLoading(false);
   }
 
+  function getVisitorId() {
+    let vid = localStorage.getItem("cambeck_visitor_id");
+    if (!vid) { vid = Math.random().toString(36).slice(2) + Date.now(); localStorage.setItem("cambeck_visitor_id", vid); }
+    return vid;
+  }
+
   async function checkPayment() {
     setChecking(true);
     try {
       const res = await fetch(`${ORDERS_URL}?action=check`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order_id: orderId }),
+        body: JSON.stringify({ order_id: orderId, visitor_id: getVisitorId(), visitor_name: "Покупатель" }),
       });
       const data = await res.json();
       if (data.status === "paid") {
-        setOrder(prev => prev ? { ...prev, status: "paid", accounts: data.accounts || [] } : prev);
+        setOrder(prev => prev ? { ...prev, status: "paid", accounts: data.accounts || [], needs_chat: data.needs_chat, chat_id: data.chat_id } : prev);
       }
     } catch {
       // ignore
@@ -161,6 +170,7 @@ export default function Pay() {
 
   // Оплачено
   if (order.status === "paid") {
+    const needsChat = order.needs_chat || (order.accounts && order.accounts.length === 0 && !order.game?.includes("steal"));
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-10" style={{ background: "#0F1923" }}>
         <div className="w-full max-w-lg">
@@ -172,6 +182,7 @@ export default function Pay() {
               Заказ: <b className="text-white">{order.item_name}</b> × {order.quantity}
             </p>
 
+            {/* Аккаунты (только для Brainrot) */}
             {order.accounts && order.accounts.length > 0 && (
               <div className="text-left rounded-xl p-4 mb-4"
                 style={{ background: "rgba(0,176,111,0.08)", border: "1px solid rgba(0,176,111,0.2)" }}>
@@ -190,10 +201,30 @@ export default function Pay() {
               </div>
             )}
 
-            <p className="font-body text-white/30 text-xs mb-5">Сохрани данные — повторно они не будут показаны</p>
+            {/* Чат для ручной выдачи */}
+            {needsChat && (
+              <div className="rounded-xl p-5 mb-5 text-left"
+                style={{ background: "rgba(0,102,255,0.08)", border: "1px solid rgba(0,102,255,0.25)" }}>
+                <p className="font-body text-blue-400 font-bold text-sm mb-2">💬 Продавец передаст товар через игру</p>
+                <p className="font-body text-white/50 text-sm mb-4">
+                  Ваш заказ оплачен. Продавец уже получил уведомление и свяжется с вами в чате для передачи товара.
+                </p>
+                <button
+                  onClick={() => {
+                    localStorage.setItem("cambeck_open_chat", "1");
+                    window.location.href = "/";
+                  }}
+                  className="w-full py-3 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
+                  style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}
+                >
+                  💬 Открыть чат с продавцом
+                </button>
+              </div>
+            )}
+
+            {!needsChat && <p className="font-body text-white/30 text-xs mb-5">Сохрани данные — повторно они не будут показаны</p>}
             <a href="/"
-              className="inline-block px-6 py-3 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
-              style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
+              className="inline-block px-6 py-3 rounded-xl font-body font-bold text-sm text-white/50 hover:text-white transition-colors text-sm">
               ← Вернуться в магазин
             </a>
           </div>
