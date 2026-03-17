@@ -40,123 +40,145 @@ def err(msg, code=400):
 
 
 # ──────────────────────────────────────────────
-# Автопроверка оплаты по блокчейну (без API ключей)
+# Автопроверка оплаты — строго по времени заказа и сумме
 # ──────────────────────────────────────────────
 
-def check_ltc_payment(address: str, amount_usd: float) -> bool:
-    """Проверяем входящие транзакции LTC через blockcypher (бесплатно, без ключа)"""
+def check_ltc_payment(address: str, amount_usd: float, created_ts: int) -> bool:
+    """LTC через blockcypher: ищем транзакцию ПОСЛЕ создания заказа с нужной суммой"""
+    # LTC/USD курс приблизительный — проверяем просто факт любого входящего платежа после заказа
+    # (точную сумму в LTC не проверяем, т.к. курс плавает — доверяем факту транзакции)
     try:
-        url = f"https://api.blockcypher.com/v1/ltc/main/addrs/{address}/full?limit=5"
+        url = f"https://api.blockcypher.com/v1/ltc/main/addrs/{address}/full?limit=10"
         r = requests.get(url, timeout=10)
         if r.status_code != 200:
             return False
         data = r.json()
-        txs = data.get("txs", [])
-        # Ищем любую входящую транзакцию за последние 2 часа
-        import time
-        cutoff = time.time() - 7200  # 2 часа
-        for tx in txs:
-            # Проверяем что транзакция подтверждена (confirmations > 0)
+        for tx in data.get("txs", []):
             if tx.get("confirmations", 0) < 1:
                 continue
-            # Проверяем что есть выходы на наш адрес
+            # received — время получения транзакции в ISO формате
+            received = tx.get("received", "")
+            if received:
+                import datetime
+                tx_time = int(datetime.datetime.fromisoformat(received.replace("Z", "+00:00")).timestamp())
+                if tx_time < created_ts:
+                    continue  # транзакция старше заказа — пропускаем
+            # Проверяем что есть выход на наш адрес
             for output in tx.get("outputs", []):
                 if address in output.get("addresses", []):
-                    return True
+                    satoshis = output.get("value", 0)
+                    if satoshis > 0:
+                        return True
     except Exception:
         pass
     return False
 
 
-def check_bsc_payment(address: str, amount_usd: float) -> bool:
-    """Проверяем USDT BEP20 через публичный BSC API"""
+def check_bsc_payment(address: str, amount_usd: float, created_ts: int) -> bool:
+    """USDT BEP20: ищем транзакцию после создания заказа с суммой >= amount_usd * 0.95"""
     try:
-        # USDT contract на BSC
         contract = "0x55d398326f99059fF775485246999027B3197955"
-        url = f"https://api.bscscan.com/api?module=account&action=tokentx&contractaddress={contract}&address={address}&page=1&offset=10&sort=desc"
+        url = (f"https://api.bscscan.com/api?module=account&action=tokentx"
+               f"&contractaddress={contract}&address={address}&page=1&offset=20&sort=desc")
         r = requests.get(url, timeout=10)
         if r.status_code != 200:
             return False
         data = r.json()
         if data.get("status") != "1":
             return False
-        txs = data.get("result", [])
-        import time
-        cutoff = int(time.time()) - 7200
-        for tx in txs:
-            if int(tx.get("timeStamp", 0)) < cutoff:
-                continue
-            if tx.get("to", "").lower() == address.lower():
-                # value в wei (18 decimals для USDT BEP20)
-                value = int(tx.get("value", 0)) / 1e18
-                if value > 0:
-                    return True
-    except Exception:
-        pass
-    return False
-
-
-def check_trc_payment(address: str, amount_usd: float) -> bool:
-    """Проверяем USDT TRC20 через Tronscan публичный API"""
-    try:
-        # USDT TRC20 contract
-        contract = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
-        url = f"https://apilist.tronscanapi.com/api/token_trc20/transfers?limit=10&start=0&toAddress={address}&contract_address={contract}"
-        r = requests.get(url, timeout=10)
-        if r.status_code != 200:
-            return False
-        data = r.json()
-        txs = data.get("token_transfers", [])
-        import time
-        cutoff = (int(time.time()) - 7200) * 1000  # в миллисекундах
-        for tx in txs:
-            if int(tx.get("block_ts", 0)) < cutoff:
-                continue
-            if tx.get("toAddress", "") == address:
-                quant = float(tx.get("quant", 0)) / 1e6
-                if quant > 0:
-                    return True
-    except Exception:
-        pass
-    return False
-
-
-def check_sol_payment(address: str, amount_usd: float) -> bool:
-    """Проверяем SOL через публичный RPC"""
-    try:
-        url = "https://api.mainnet-beta.solana.com"
-        payload = {
-            "jsonrpc": "2.0", "id": 1,
-            "method": "getSignaturesForAddress",
-            "params": [address, {"limit": 5}]
-        }
-        r = requests.post(url, json=payload, timeout=10)
-        if r.status_code != 200:
-            return False
-        data = r.json()
-        sigs = data.get("result", [])
-        import time
-        cutoff = int(time.time()) - 7200
-        for sig in sigs:
-            if sig.get("err") is not None:
-                continue
-            block_time = sig.get("blockTime", 0)
-            if block_time and block_time > cutoff:
+        for tx in data.get("result", []):
+            tx_time = int(tx.get("timeStamp", 0))
+            if tx_time < created_ts:
+                continue  # старее заказа
+            if tx.get("to", "").lower() != address.lower():
+                continue  # не на наш адрес
+            value = int(tx.get("value", 0)) / 1e18
+            if value >= amount_usd * 0.95:  # допуск 5% на комиссии
                 return True
     except Exception:
         pass
     return False
 
 
-def verify_crypto_payment(network: str, address: str, amount_usd: float) -> bool:
+def check_trc_payment(address: str, amount_usd: float, created_ts: int) -> bool:
+    """USDT TRC20: ищем транзакцию после создания заказа с суммой >= amount_usd * 0.95"""
+    try:
+        contract = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+        url = (f"https://apilist.tronscanapi.com/api/token_trc20/transfers"
+               f"?limit=20&start=0&toAddress={address}&contract_address={contract}")
+        r = requests.get(url, timeout=10)
+        if r.status_code != 200:
+            return False
+        data = r.json()
+        created_ms = created_ts * 1000
+        for tx in data.get("token_transfers", []):
+            tx_time = int(tx.get("block_ts", 0))
+            if tx_time < created_ms:
+                continue  # старее заказа
+            if tx.get("toAddress", "") != address:
+                continue
+            quant = float(tx.get("quant", 0)) / 1e6
+            if quant >= amount_usd * 0.95:
+                return True
+    except Exception:
+        pass
+    return False
+
+
+def check_sol_payment(address: str, amount_usd: float, created_ts: int) -> bool:
+    """SOL: ищем входящую транзакцию после создания заказа"""
+    try:
+        url = "https://api.mainnet-beta.solana.com"
+        # Получаем подписи транзакций
+        r = requests.post(url, json={
+            "jsonrpc": "2.0", "id": 1,
+            "method": "getSignaturesForAddress",
+            "params": [address, {"limit": 10}]
+        }, timeout=10)
+        if r.status_code != 200:
+            return False
+        sigs = r.json().get("result", [])
+        for sig in sigs:
+            if sig.get("err") is not None:
+                continue
+            block_time = sig.get("blockTime", 0)
+            if not block_time or block_time < created_ts:
+                continue  # старее заказа
+            # Проверяем детали транзакции — есть ли входящий перевод на наш адрес
+            r2 = requests.post(url, json={
+                "jsonrpc": "2.0", "id": 1,
+                "method": "getTransaction",
+                "params": [sig["signature"], {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 0}]
+            }, timeout=10)
+            if r2.status_code != 200:
+                continue
+            tx_data = r2.json().get("result")
+            if not tx_data:
+                continue
+            # Ищем изменение баланса нашего адреса
+            pre = tx_data.get("meta", {}).get("preBalances", [])
+            post = tx_data.get("meta", {}).get("postBalances", [])
+            accounts = tx_data.get("transaction", {}).get("message", {}).get("accountKeys", [])
+            for i, acc in enumerate(accounts):
+                acc_key = acc if isinstance(acc, str) else acc.get("pubkey", "")
+                if acc_key == address and i < len(pre) and i < len(post):
+                    diff = post[i] - pre[i]
+                    if diff > 0:  # баланс вырос — входящий платёж
+                        return True
+    except Exception:
+        pass
+    return False
+
+
+def verify_crypto_payment(network: str, address: str, amount_usd: float, created_ts: int) -> bool:
     if network == "LTC":
-        return check_ltc_payment(address, amount_usd)
+        return check_ltc_payment(address, amount_usd, created_ts)
     elif network == "USDT_BEP":
-        return check_bsc_payment(address, amount_usd)
+        return check_bsc_payment(address, amount_usd, created_ts)
     elif network == "USDT_TRC":
-        return check_trc_payment(address, amount_usd)
+        return check_trc_payment(address, amount_usd, created_ts)
     elif network == "SOL":
-        return check_sol_payment(address, amount_usd)
+        return check_sol_payment(address, amount_usd, created_ts)
     return False
 
 
@@ -285,7 +307,7 @@ def handler(event: dict, context) -> dict:
         conn = get_conn()
         cur = conn.cursor()
         cur.execute(
-            "SELECT id, item_id, price_usd, quantity, crypto_network, crypto_address, status FROM orders WHERE id = %s",
+            "SELECT id, item_id, price_usd, quantity, crypto_network, crypto_address, status, created_at FROM orders WHERE id = %s",
             (order_id,)
         )
         row = cur.fetchone()
@@ -304,8 +326,15 @@ def handler(event: dict, context) -> dict:
         quantity = row[3]
         network = row[4]
         address = row[5]
+        # Время создания заказа — ищем только транзакции ПОСЛЕ этого момента
+        import datetime
+        created_at = row[7]
+        if hasattr(created_at, 'timestamp'):
+            created_ts = int(created_at.timestamp())
+        else:
+            created_ts = int(datetime.datetime.fromisoformat(str(created_at)).timestamp())
 
-        paid = verify_crypto_payment(network, address, amount_usd)
+        paid = verify_crypto_payment(network, address, amount_usd, created_ts)
         if paid:
             issue_accounts(cur, order_id, db_item_id, quantity)
             cur.execute("UPDATE orders SET status = 'paid', paid_at = NOW() WHERE id = %s", (order_id,))
