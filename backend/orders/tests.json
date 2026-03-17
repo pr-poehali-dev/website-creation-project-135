@@ -29,6 +29,14 @@
       "path": "/?action=list",
       "expectedStatus": 403,
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get catalog public",
+      "method": "GET",
+      "path": "/?action=catalog",
+      "expectedStatus": 200,
+      "expectedBody": {"items": []},
+      "bodyMatcher": "partial"
     }
   ]
 }

@@ -38,6 +38,30 @@ const GAMES: Game[] = [
     description: "Юниты, Lucky Blocks, Trade Tokens и редкие мутации",
     badge: "🔥 Хит",
   },
+  {
+    id: "blade-ball",
+    name: "Blade Ball",
+    image: "https://cdn.poehali.dev/projects/55eebfd7-5c19-4adf-ae5d-100fe458b847/bucket/1bedf365-0fc1-476b-8d20-8b269805d290.png",
+    description: "Мечи, способности и игровая валюта",
+  },
+  {
+    id: "rivals",
+    name: "Rivals",
+    image: "https://cdn.poehali.dev/projects/55eebfd7-5c19-4adf-ae5d-100fe458b847/bucket/80e8ab2f-8348-4cbb-ad3c-61c99a3e52eb.png",
+    description: "Скины, валюта и предметы для Rivals",
+  },
+  {
+    id: "blox-fruits",
+    name: "Blox Fruits",
+    image: "https://cdn.poehali.dev/projects/55eebfd7-5c19-4adf-ae5d-100fe458b847/bucket/ef4b289a-a2e5-4ec5-a786-462f55acca85.png",
+    description: "Фрукты, боссы, игровая валюта",
+  },
+  {
+    id: "gift-op",
+    name: "Gift OP",
+    image: "https://cdn.poehali.dev/projects/55eebfd7-5c19-4adf-ae5d-100fe458b847/bucket/43c99621-39bd-4d09-81f1-24201aa5dd32.png",
+    description: "Подарки и редкие предметы",
+  },
 ];
 
 const catalogItems: CatalogItem[] = [
@@ -229,11 +253,31 @@ export default function Index() {
   const [loaded, setLoaded] = useState(false);
   const [dbPrices, setDbPrices] = useState<Record<string, number>>({});
   const [dbStock, setDbStock] = useState<Record<string, number>>({});
+  const [dbCatalog, setDbCatalog] = useState<CatalogItem[]>([]);
   const [reviewsExpanded, setReviewsExpanded] = useState(false);
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
 
   useEffect(() => {
     setLoaded(true);
+
+    function loadCatalog() {
+      fetch(`${ORDERS_URL}?action=catalog`)
+        .then(r => r.json())
+        .then(d => {
+          if (d.items && d.items.length > 0) {
+            setDbCatalog(d.items.map((i: { id: number; name: string; price_usd: number; stock: number; emoji: string; category: string; game: string }) => ({
+              id: i.id,
+              name: i.name,
+              priceUsd: i.price_usd,
+              stock: i.stock,
+              emoji: i.emoji,
+              category: i.category as "lucky" | "other",
+              game: i.game,
+            })));
+          }
+        })
+        .catch(() => {});
+    }
 
     function loadPrices() {
       fetch(`${ORDERS_URL}?action=prices`)
@@ -249,6 +293,7 @@ export default function Index() {
         .catch(() => {});
     }
 
+    loadCatalog();
     loadPrices();
     loadStock();
 
@@ -523,7 +568,7 @@ export default function Index() {
                   <div className="flex-1 h-px" style={{ background: "rgba(255,184,0,0.2)" }} />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {catalogItems.filter(i => i.game === selectedGame && i.category === "lucky").map((item) => (
+                  {(dbCatalog.length > 0 ? dbCatalog : catalogItems).filter(i => i.game === selectedGame && i.category === "lucky").map((item) => (
                     <CatalogCard key={item.id} item={{
                       ...item,
                       priceUsd: dbPrices[String(item.id)] ?? item.priceUsd,

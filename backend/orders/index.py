@@ -503,4 +503,79 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return ok({"stock": {str(r[0]): int(r[1]) for r in rows}})
 
+    # GET catalog — список всех товаров из БД (публичный)
+    if method == "GET" and action == "catalog":
+        conn = get_conn()
+        cur = conn.cursor()
+        schema = os.environ.get("MAIN_DB_SCHEMA", "public")
+        cur.execute(f"SELECT id, name, price_usd, stock, emoji, category, game, sort_order FROM {schema}.catalog_items ORDER BY sort_order, id")
+        rows = cur.fetchall()
+        conn.close()
+        items = [{"id": r[0], "name": r[1], "price_usd": float(r[2]), "stock": r[3], "emoji": r[4], "category": r[5], "game": r[6], "sort_order": r[7]} for r in rows]
+        return ok({"items": items})
+
+    # POST catalog_create — создать товар (admin)
+    if method == "POST" and action == "catalog_create":
+        if not is_admin:
+            return err("Нет доступа", 403)
+        name = body.get("name", "").strip()
+        price_usd = body.get("price_usd", 0)
+        emoji = body.get("emoji", "📦")
+        category = body.get("category", "other")
+        game = body.get("game", "steal-a-brainrot")
+        sort_order = body.get("sort_order", 0)
+        if not name:
+            return err("Нужно название")
+        conn = get_conn()
+        cur = conn.cursor()
+        schema = os.environ.get("MAIN_DB_SCHEMA", "public")
+        cur.execute(
+            f"INSERT INTO {schema}.catalog_items (name, price_usd, stock, emoji, category, game, sort_order) VALUES (%s, %s, 0, %s, %s, %s, %s) RETURNING id",
+            (name, float(price_usd), emoji, category, game, int(sort_order))
+        )
+        new_id = cur.fetchone()[0]
+        conn.commit()
+        conn.close()
+        return ok({"success": True, "id": new_id})
+
+    # POST catalog_update — обновить товар (admin)
+    if method == "POST" and action == "catalog_update":
+        if not is_admin:
+            return err("Нет доступа", 403)
+        item_id = body.get("id")
+        if not item_id:
+            return err("Нужен id")
+        conn = get_conn()
+        cur = conn.cursor()
+        schema = os.environ.get("MAIN_DB_SCHEMA", "public")
+        fields = []
+        values = []
+        for field in ["name", "price_usd", "stock", "emoji", "category", "game", "sort_order"]:
+            if field in body:
+                fields.append(f"{field} = %s")
+                values.append(body[field])
+        if not fields:
+            conn.close()
+            return err("Нет полей для обновления")
+        values.append(item_id)
+        cur.execute(f"UPDATE {schema}.catalog_items SET {', '.join(fields)} WHERE id = %s", values)
+        conn.commit()
+        conn.close()
+        return ok({"success": True})
+
+    # POST catalog_delete — удалить товар (admin)
+    if method == "POST" and action == "catalog_delete":
+        if not is_admin:
+            return err("Нет доступа", 403)
+        item_id = body.get("id")
+        if not item_id:
+            return err("Нужен id")
+        conn = get_conn()
+        cur = conn.cursor()
+        schema = os.environ.get("MAIN_DB_SCHEMA", "public")
+        cur.execute(f"DELETE FROM {schema}.catalog_items WHERE id = %s", (item_id,))
+        conn.commit()
+        conn.close()
+        return ok({"success": True})
+
     return err("Неизвестный action", 404)

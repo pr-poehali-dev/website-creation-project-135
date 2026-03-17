@@ -25,6 +25,15 @@ type Message = { id: string; sender: string; text: string; created_at: string };
 type Order = { order_id: string; item_name: string; amount_usd: number; quantity: number; network: string; status: string; created_at: string; };
 type StockRow = { item_id: number; available: number; total: number };
 type Account = { id: string; credentials: string; is_sold: boolean; sold_at: string | null; created_at: string };
+type CatalogItemAdmin = { id: number; name: string; price_usd: number; stock: number; emoji: string; category: string; game: string; sort_order: number };
+
+const GAMES_LIST = [
+  { id: "steal-a-brainrot", name: "Steal a Brainrot" },
+  { id: "blade-ball", name: "Blade Ball" },
+  { id: "rivals", name: "Rivals" },
+  { id: "blox-fruits", name: "Blox Fruits" },
+  { id: "gift-op", name: "Gift OP" },
+];
 
 function NewItemForm({ token, onCreated }: { token: string; onCreated: () => void }) {
   const [name, setName] = useState("");
@@ -133,7 +142,15 @@ export default function Admin() {
   const [loginVal, setLoginVal] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [tab, setTab] = useState<"chats" | "orders" | "stock">("chats");
+  const [tab, setTab] = useState<"chats" | "orders" | "stock" | "catalog">("chats");
+
+  // Catalog
+  const [catalogItems, setCatalogItems] = useState<CatalogItemAdmin[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [editingItem, setEditingItem] = useState<CatalogItemAdmin | null>(null);
+  const [newItem, setNewItem] = useState<Partial<CatalogItemAdmin>>({ name: "", price_usd: 0, emoji: "📦", category: "lucky", game: "steal-a-brainrot", sort_order: 0 });
+  const [showNewItemForm, setShowNewItemForm] = useState(false);
+  const [catalogMsg, setCatalogMsg] = useState("");
 
   // Chats
   const [chats, setChats] = useState<Chat[]>([]);
@@ -168,6 +185,7 @@ export default function Admin() {
     fetchOrders();
     fetchStockSummary();
     fetchPrices();
+    fetchCatalog();
     const interval = setInterval(() => { fetchChats(); fetchOrders(); }, 5000);
     return () => clearInterval(interval);
   }, [isAuthed]);
@@ -342,6 +360,57 @@ export default function Admin() {
     fetchStockSummary();
   }
 
+  async function fetchCatalog() {
+    setCatalogLoading(true);
+    const res = await fetch(`${ORDERS_URL}?action=catalog`);
+    const data = await res.json();
+    if (data.items) setCatalogItems(data.items);
+    setCatalogLoading(false);
+  }
+
+  async function createCatalogItem() {
+    if (!newItem.name?.trim()) { setCatalogMsg("❌ Введи название"); return; }
+    const res = await fetch(`${ORDERS_URL}?action=catalog_create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+      body: JSON.stringify(newItem),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setCatalogMsg("✅ Товар добавлен");
+      setShowNewItemForm(false);
+      setNewItem({ name: "", price_usd: 0, emoji: "📦", category: "lucky", game: "steal-a-brainrot", sort_order: 0 });
+      fetchCatalog();
+      setTimeout(() => setCatalogMsg(""), 2000);
+    } else setCatalogMsg("❌ " + (data.error || "Ошибка"));
+  }
+
+  async function updateCatalogItem(item: CatalogItemAdmin) {
+    const res = await fetch(`${ORDERS_URL}?action=catalog_update`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+      body: JSON.stringify(item),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setCatalogMsg("✅ Сохранено");
+      setEditingItem(null);
+      fetchCatalog();
+      setTimeout(() => setCatalogMsg(""), 2000);
+    } else setCatalogMsg("❌ " + (data.error || "Ошибка"));
+  }
+
+  async function deleteCatalogItem(id: number) {
+    if (!confirm("Удалить товар?")) return;
+    const res = await fetch(`${ORDERS_URL}?action=catalog_delete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+      body: JSON.stringify({ id }),
+    });
+    const data = await res.json();
+    if (data.success) { fetchCatalog(); setCatalogMsg("✅ Удалено"); setTimeout(() => setCatalogMsg(""), 2000); }
+  }
+
   function logout() {
     localStorage.removeItem("cambeck_admin_token");
     setToken("");
@@ -413,8 +482,9 @@ export default function Admin() {
             { id: "chats", label: "💬 Чаты", count: chats.filter(c => c.status === "open").length },
             { id: "orders", label: "📦 Заказы", count: orders.filter(o => o.status === "pending").length },
             { id: "stock", label: "🗄️ Склад", count: null },
+            { id: "catalog", label: "🛒 Каталог", count: null },
           ].map(t => (
-            <button key={t.id} onClick={() => setTab(t.id as "chats" | "orders" | "stock")}
+            <button key={t.id} onClick={() => setTab(t.id as "chats" | "orders" | "stock" | "catalog")}
               className="px-3 py-1.5 rounded-lg font-body text-xs transition-all"
               style={{ background: tab === t.id ? "rgba(0,102,255,0.2)" : "transparent", color: tab === t.id ? "#4DA6FF" : "rgba(255,255,255,0.4)" }}>
               {t.label}{t.count !== null && t.count > 0 ? ` (${t.count})` : ""}
@@ -640,6 +710,158 @@ export default function Admin() {
               </>
             )}
           </div>
+        </div>
+      )}
+
+      {/* CATALOG TAB */}
+      {tab === "catalog" && (
+        <div className="flex-1 overflow-y-auto p-5">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-display font-bold text-white text-lg">🛒 Каталог товаров</h2>
+            <button onClick={() => { setShowNewItemForm(true); setEditingItem(null); }}
+              className="px-4 py-2 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
+              style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
+              + Добавить товар
+            </button>
+          </div>
+
+          {catalogMsg && (
+            <div className="mb-4 px-4 py-2 rounded-xl text-sm font-body text-center"
+              style={{ color: catalogMsg.startsWith("✅") ? "#00D080" : "#FF6B6B", background: catalogMsg.startsWith("✅") ? "rgba(0,208,128,0.1)" : "rgba(255,107,107,0.1)" }}>
+              {catalogMsg}
+            </div>
+          )}
+
+          {/* Форма нового товара */}
+          {showNewItemForm && (
+            <div className="rounded-2xl p-5 mb-5" style={{ background: "#161F2C", border: "1px solid rgba(0,102,255,0.25)" }}>
+              <h3 className="font-display font-bold text-white text-base mb-4">Новый товар</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className="font-body text-white/40 text-xs mb-1 block">Название *</label>
+                  <input value={newItem.name || ""} onChange={e => setNewItem(p => ({ ...p, name: e.target.value }))}
+                    placeholder="Название товара"
+                    className="w-full px-3 py-2 rounded-xl font-body text-sm text-white outline-none"
+                    style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+                </div>
+                <div>
+                  <label className="font-body text-white/40 text-xs mb-1 block">Цена ($)</label>
+                  <input type="number" step="0.01" value={newItem.price_usd || 0} onChange={e => setNewItem(p => ({ ...p, price_usd: parseFloat(e.target.value) }))}
+                    className="w-full px-3 py-2 rounded-xl font-body text-sm text-white outline-none"
+                    style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+                </div>
+                <div>
+                  <label className="font-body text-white/40 text-xs mb-1 block">Эмодзи</label>
+                  <input value={newItem.emoji || "📦"} onChange={e => setNewItem(p => ({ ...p, emoji: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl font-body text-sm text-white outline-none text-center"
+                    style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+                </div>
+                <div>
+                  <label className="font-body text-white/40 text-xs mb-1 block">Игра</label>
+                  <select value={newItem.game || "steal-a-brainrot"} onChange={e => setNewItem(p => ({ ...p, game: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl font-body text-sm text-white outline-none"
+                    style={{ background: "#1e2a3a", border: "1px solid rgba(255,255,255,0.1)" }}>
+                    {GAMES_LIST.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="font-body text-white/40 text-xs mb-1 block">Категория</label>
+                  <select value={newItem.category || "lucky"} onChange={e => setNewItem(p => ({ ...p, category: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl font-body text-sm text-white outline-none"
+                    style={{ background: "#1e2a3a", border: "1px solid rgba(255,255,255,0.1)" }}>
+                    <option value="lucky">Lucky</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-body text-white/40 text-xs mb-1 block">Порядок (число)</label>
+                  <input type="number" value={newItem.sort_order || 0} onChange={e => setNewItem(p => ({ ...p, sort_order: parseInt(e.target.value) }))}
+                    className="w-full px-3 py-2 rounded-xl font-body text-sm text-white outline-none"
+                    style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={createCatalogItem}
+                  className="flex-1 py-2.5 rounded-xl font-body font-bold text-sm text-white"
+                  style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
+                  ✅ Создать
+                </button>
+                <button onClick={() => setShowNewItemForm(false)}
+                  className="px-5 py-2.5 rounded-xl font-body text-sm text-white/40 hover:text-white"
+                  style={{ background: "rgba(255,255,255,0.05)" }}>
+                  Отмена
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Список товаров по играм */}
+          {catalogLoading ? (
+            <p className="text-white/30 font-body text-sm">Загружаем...</p>
+          ) : (
+            GAMES_LIST.map(game => {
+              const items = catalogItems.filter(i => i.game === game.id);
+              return (
+                <div key={game.id} className="mb-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="font-display font-bold text-white/70 text-sm">{game.name}</span>
+                    <span className="font-body text-white/30 text-xs">({items.length} товаров)</span>
+                  </div>
+                  {items.length === 0 && (
+                    <p className="text-white/20 font-body text-xs ml-2">Нет товаров — нажми «+ Добавить товар»</p>
+                  )}
+                  <div className="flex flex-col gap-2">
+                    {items.map(item => (
+                      <div key={item.id} className="rounded-xl px-4 py-3 flex items-center gap-3"
+                        style={{ background: "#161F2C", border: "1px solid rgba(255,255,255,0.06)" }}>
+                        {editingItem?.id === item.id ? (
+                          <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            <input value={editingItem.name} onChange={e => setEditingItem(p => p ? { ...p, name: e.target.value } : p)}
+                              className="col-span-2 px-2 py-1.5 rounded-lg font-body text-sm text-white outline-none"
+                              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
+                            <div className="flex gap-1">
+                              <span className="font-body text-white/40 text-xs self-center">$</span>
+                              <input type="number" step="0.01" value={editingItem.price_usd} onChange={e => setEditingItem(p => p ? { ...p, price_usd: parseFloat(e.target.value) } : p)}
+                                className="flex-1 px-2 py-1.5 rounded-lg font-body text-sm text-white outline-none"
+                                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
+                            </div>
+                            <div className="flex gap-1">
+                              <span className="font-body text-white/40 text-xs self-center">шт</span>
+                              <input type="number" value={editingItem.stock} onChange={e => setEditingItem(p => p ? { ...p, stock: parseInt(e.target.value) } : p)}
+                                className="flex-1 px-2 py-1.5 rounded-lg font-body text-sm text-white outline-none"
+                                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
+                            </div>
+                            <div className="col-span-2 sm:col-span-4 flex gap-2 mt-1">
+                              <button onClick={() => updateCatalogItem(editingItem)}
+                                className="px-4 py-1.5 rounded-lg font-body font-bold text-xs text-white"
+                                style={{ background: "#00D080" }}>Сохранить</button>
+                              <button onClick={() => setEditingItem(null)}
+                                className="px-4 py-1.5 rounded-lg font-body text-xs text-white/40 hover:text-white"
+                                style={{ background: "rgba(255,255,255,0.05)" }}>Отмена</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="text-xl">{item.emoji}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-body text-white text-sm truncate">{item.name}</div>
+                              <div className="font-body text-white/40 text-xs">${item.price_usd} · {item.stock} шт в наличии</div>
+                            </div>
+                            <button onClick={() => setEditingItem({ ...item })}
+                              className="px-3 py-1.5 rounded-lg font-body text-xs text-white/60 hover:text-white transition-colors"
+                              style={{ background: "rgba(255,255,255,0.05)" }}>✏️ Изменить</button>
+                            <button onClick={() => deleteCatalogItem(item.id)}
+                              className="px-3 py-1.5 rounded-lg font-body text-xs text-red-400/60 hover:text-red-400 transition-colors"
+                              style={{ background: "rgba(232,52,58,0.07)" }}>🗑️</button>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       )}
 
