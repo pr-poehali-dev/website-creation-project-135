@@ -490,4 +490,17 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return ok({"prices": {str(r[0]): float(r[1]) for r in rows}})
 
+    # GET stock_public — публичные остатки (только количество доступных)
+    if method == "GET" and action == "stock_public":
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT item_id, COUNT(*) as available
+            FROM stock_accounts WHERE is_sold = FALSE
+            GROUP BY item_id
+        """)
+        rows = cur.fetchall()
+        conn.close()
+        return ok({"stock": {str(r[0]): int(r[1]) for r in rows}})
+
     return err("Неизвестный action", 404)

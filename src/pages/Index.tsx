@@ -149,12 +149,19 @@ export default function Index() {
   const [supportModalOpen, setSupportModalOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [dbPrices, setDbPrices] = useState<Record<string, number>>({});
+  const [dbStock, setDbStock] = useState<Record<string, number>>({});
 
   useEffect(() => {
     setLoaded(true);
+    // Загружаем цены
     fetch(`${ORDERS_URL}?action=prices`)
       .then(r => r.json())
       .then(d => { if (d.prices) setDbPrices(d.prices); })
+      .catch(() => {});
+    // Загружаем реальные остатки из БД
+    fetch(`${ORDERS_URL}?action=stock_public`)
+      .then(r => r.json())
+      .then(d => { if (d.stock) setDbStock(d.stock); })
       .catch(() => {});
   }, []);
 
@@ -359,7 +366,11 @@ export default function Index() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {catalogItems.filter(i => i.category === "lucky").map((item) => (
-                <CatalogCard key={item.id} item={{ ...item, priceUsd: dbPrices[String(item.id)] ?? item.priceUsd }} />
+                <CatalogCard key={item.id} item={{
+                  ...item,
+                  priceUsd: dbPrices[String(item.id)] ?? item.priceUsd,
+                  stock: dbStock[String(item.id)] ?? item.stock,
+                }} />
               ))}
             </div>
           </div>
