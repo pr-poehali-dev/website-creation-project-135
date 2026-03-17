@@ -143,14 +143,23 @@ export default function Admin() {
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [tab, setTab] = useState<"chats" | "orders" | "stock" | "catalog">("chats");
+  const [catalogSubTab, setCatalogSubTab] = useState<"items" | "games">("items");
 
-  // Catalog
+  // Catalog items
   const [catalogItems, setCatalogItems] = useState<CatalogItemAdmin[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [editingItem, setEditingItem] = useState<CatalogItemAdmin | null>(null);
   const [newItem, setNewItem] = useState<Partial<CatalogItemAdmin>>({ name: "", price_usd: 0, emoji: "📦", category: "lucky", game: "steal-a-brainrot", sort_order: 0 });
   const [showNewItemForm, setShowNewItemForm] = useState(false);
   const [catalogMsg, setCatalogMsg] = useState("");
+
+  // Catalog games
+  type GameAdmin = { id: string; name: string; image: string; description: string; badge: string | null; sort_order: number };
+  const [games, setGames] = useState<GameAdmin[]>([]);
+  const [editingGame, setEditingGame] = useState<GameAdmin | null>(null);
+  const [showNewGameForm, setShowNewGameForm] = useState(false);
+  const [newGame, setNewGame] = useState<Partial<GameAdmin>>({ id: "", name: "", image: "", description: "", badge: "", sort_order: 0 });
+  const [gamesMsg, setGamesMsg] = useState("");
 
   // Chats
   const [chats, setChats] = useState<Chat[]>([]);
@@ -186,6 +195,7 @@ export default function Admin() {
     fetchStockSummary();
     fetchPrices();
     fetchCatalog();
+    fetchGames();
     const interval = setInterval(() => { fetchChats(); fetchOrders(); }, 5000);
     return () => clearInterval(interval);
   }, [isAuthed]);
@@ -358,6 +368,55 @@ export default function Admin() {
     });
     if (selectedItemId !== null) fetchItemAccounts(selectedItemId);
     fetchStockSummary();
+  }
+
+  async function fetchGames() {
+    const res = await fetch(`${ORDERS_URL}?action=games`);
+    const data = await res.json();
+    if (data.games) setGames(data.games);
+  }
+
+  async function createGame() {
+    if (!newGame.id?.trim() || !newGame.name?.trim()) { setGamesMsg("❌ Заполни ID и название"); return; }
+    const res = await fetch(`${ORDERS_URL}?action=game_create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+      body: JSON.stringify(newGame),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setGamesMsg("✅ Игра добавлена");
+      setShowNewGameForm(false);
+      setNewGame({ id: "", name: "", image: "", description: "", badge: "", sort_order: 0 });
+      fetchGames();
+      setTimeout(() => setGamesMsg(""), 2000);
+    } else setGamesMsg("❌ " + (data.error || "Ошибка"));
+  }
+
+  async function updateGame(g: { id: string; name: string; image: string; description: string; badge: string | null; sort_order: number }) {
+    const res = await fetch(`${ORDERS_URL}?action=game_update`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+      body: JSON.stringify(g),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setGamesMsg("✅ Сохранено");
+      setEditingGame(null);
+      fetchGames();
+      setTimeout(() => setGamesMsg(""), 2000);
+    } else setGamesMsg("❌ " + (data.error || "Ошибка"));
+  }
+
+  async function deleteGame(id: string) {
+    if (!confirm("Удалить игру? Товары останутся в БД.")) return;
+    const res = await fetch(`${ORDERS_URL}?action=game_delete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+      body: JSON.stringify({ id }),
+    });
+    const data = await res.json();
+    if (data.success) { fetchGames(); setGamesMsg("✅ Удалено"); setTimeout(() => setGamesMsg(""), 2000); }
   }
 
   async function fetchCatalog() {
@@ -716,21 +775,161 @@ export default function Admin() {
       {/* CATALOG TAB */}
       {tab === "catalog" && (
         <div className="flex-1 overflow-y-auto p-5">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="font-display font-bold text-white text-lg">🛒 Каталог товаров</h2>
-            <button onClick={() => { setShowNewItemForm(true); setEditingItem(null); }}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display font-bold text-white text-lg">🛒 Каталог</h2>
+            <button onClick={() => catalogSubTab === "items" ? (setShowNewItemForm(true), setEditingItem(null)) : (setShowNewGameForm(true), setEditingGame(null))}
               className="px-4 py-2 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
               style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
-              + Добавить товар
+              + {catalogSubTab === "items" ? "Добавить товар" : "Добавить игру"}
             </button>
           </div>
 
-          {catalogMsg && (
+          {/* Подвкладки */}
+          <div className="flex gap-2 mb-5">
+            {[{ id: "items", label: "📦 Товары" }, { id: "games", label: "🎮 Игры" }].map(st => (
+              <button key={st.id} onClick={() => setCatalogSubTab(st.id as "items" | "games")}
+                className="px-4 py-2 rounded-xl font-body text-sm transition-all"
+                style={{ background: catalogSubTab === st.id ? "rgba(0,102,255,0.2)" : "rgba(255,255,255,0.05)", color: catalogSubTab === st.id ? "#4DA6FF" : "rgba(255,255,255,0.4)" }}>
+                {st.label}
+              </button>
+            ))}
+          </div>
+
+          {(catalogMsg || gamesMsg) && (
             <div className="mb-4 px-4 py-2 rounded-xl text-sm font-body text-center"
-              style={{ color: catalogMsg.startsWith("✅") ? "#00D080" : "#FF6B6B", background: catalogMsg.startsWith("✅") ? "rgba(0,208,128,0.1)" : "rgba(255,107,107,0.1)" }}>
-              {catalogMsg}
+              style={{ color: (catalogMsg || gamesMsg).startsWith("✅") ? "#00D080" : "#FF6B6B", background: (catalogMsg || gamesMsg).startsWith("✅") ? "rgba(0,208,128,0.1)" : "rgba(255,107,107,0.1)" }}>
+              {catalogMsg || gamesMsg}
             </div>
           )}
+
+          {/* ======= ПОДВКЛАДКА ИГРЫ ======= */}
+          {catalogSubTab === "games" && (
+            <div>
+              {/* Форма новой игры */}
+              {showNewGameForm && (
+                <div className="rounded-2xl p-5 mb-5" style={{ background: "#161F2C", border: "1px solid rgba(0,102,255,0.25)" }}>
+                  <h3 className="font-display font-bold text-white text-base mb-4">Новая игра</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="font-body text-white/40 text-xs mb-1 block">ID (латиница, дефисы) *</label>
+                      <input value={newGame.id || ""} onChange={e => setNewGame(p => ({ ...p, id: e.target.value }))}
+                        placeholder="my-game"
+                        className="w-full px-3 py-2 rounded-xl font-body text-sm text-white outline-none"
+                        style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+                    </div>
+                    <div>
+                      <label className="font-body text-white/40 text-xs mb-1 block">Название *</label>
+                      <input value={newGame.name || ""} onChange={e => setNewGame(p => ({ ...p, name: e.target.value }))}
+                        placeholder="My Game"
+                        className="w-full px-3 py-2 rounded-xl font-body text-sm text-white outline-none"
+                        style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="font-body text-white/40 text-xs mb-1 block">Ссылка на картинку</label>
+                      <input value={newGame.image || ""} onChange={e => setNewGame(p => ({ ...p, image: e.target.value }))}
+                        placeholder="https://..."
+                        className="w-full px-3 py-2 rounded-xl font-body text-sm text-white outline-none"
+                        style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+                    </div>
+                    <div>
+                      <label className="font-body text-white/40 text-xs mb-1 block">Описание</label>
+                      <input value={newGame.description || ""} onChange={e => setNewGame(p => ({ ...p, description: e.target.value }))}
+                        placeholder="Короткое описание"
+                        className="w-full px-3 py-2 rounded-xl font-body text-sm text-white outline-none"
+                        style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+                    </div>
+                    <div>
+                      <label className="font-body text-white/40 text-xs mb-1 block">Бейдж (необязательно)</label>
+                      <input value={newGame.badge || ""} onChange={e => setNewGame(p => ({ ...p, badge: e.target.value }))}
+                        placeholder="🔥 Хит"
+                        className="w-full px-3 py-2 rounded-xl font-body text-sm text-white outline-none"
+                        style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <button onClick={createGame}
+                      className="flex-1 py-2.5 rounded-xl font-body font-bold text-sm text-white"
+                      style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
+                      ✅ Создать
+                    </button>
+                    <button onClick={() => setShowNewGameForm(false)}
+                      className="px-5 py-2.5 rounded-xl font-body text-sm text-white/40 hover:text-white"
+                      style={{ background: "rgba(255,255,255,0.05)" }}>
+                      Отмена
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Список игр */}
+              <div className="flex flex-col gap-3">
+                {games.map(game => (
+                  <div key={game.id} className="rounded-xl overflow-hidden"
+                    style={{ background: "#161F2C", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    {editingGame?.id === game.id ? (
+                      <div className="p-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                          <div>
+                            <label className="font-body text-white/40 text-xs mb-1 block">Название</label>
+                            <input value={editingGame.name} onChange={e => setEditingGame(p => p ? { ...p, name: e.target.value } : p)}
+                              className="w-full px-3 py-2 rounded-xl font-body text-sm text-white outline-none"
+                              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
+                          </div>
+                          <div>
+                            <label className="font-body text-white/40 text-xs mb-1 block">Бейдж</label>
+                            <input value={editingGame.badge || ""} onChange={e => setEditingGame(p => p ? { ...p, badge: e.target.value } : p)}
+                              placeholder="🔥 Хит"
+                              className="w-full px-3 py-2 rounded-xl font-body text-sm text-white outline-none"
+                              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="font-body text-white/40 text-xs mb-1 block">Ссылка на картинку</label>
+                            <input value={editingGame.image} onChange={e => setEditingGame(p => p ? { ...p, image: e.target.value } : p)}
+                              className="w-full px-3 py-2 rounded-xl font-body text-sm text-white outline-none"
+                              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="font-body text-white/40 text-xs mb-1 block">Описание</label>
+                            <input value={editingGame.description} onChange={e => setEditingGame(p => p ? { ...p, description: e.target.value } : p)}
+                              className="w-full px-3 py-2 rounded-xl font-body text-sm text-white outline-none"
+                              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => updateGame(editingGame)}
+                            className="px-5 py-2 rounded-xl font-body font-bold text-xs text-white"
+                            style={{ background: "#00D080" }}>Сохранить</button>
+                          <button onClick={() => setEditingGame(null)}
+                            className="px-5 py-2 rounded-xl font-body text-xs text-white/40 hover:text-white"
+                            style={{ background: "rgba(255,255,255,0.05)" }}>Отмена</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 p-3">
+                        {game.image && (
+                          <img src={game.image} alt={game.name} className="w-14 h-10 rounded-lg object-cover flex-shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-body text-white text-sm font-bold">{game.name}</div>
+                          <div className="font-body text-white/40 text-xs truncate">{game.description}</div>
+                          {game.badge && <span className="font-body text-xs text-yellow-400">{game.badge}</span>}
+                        </div>
+                        <button onClick={() => setEditingGame({ ...game })}
+                          className="px-3 py-1.5 rounded-lg font-body text-xs text-white/60 hover:text-white"
+                          style={{ background: "rgba(255,255,255,0.05)" }}>✏️</button>
+                        <button onClick={() => deleteGame(game.id)}
+                          className="px-3 py-1.5 rounded-lg font-body text-xs text-red-400/60 hover:text-red-400"
+                          style={{ background: "rgba(232,52,58,0.07)" }}>🗑️</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ======= ПОДВКЛАДКА ТОВАРЫ ======= */}
+          {catalogSubTab === "items" && <>
 
           {/* Форма нового товара */}
           {showNewItemForm && (
@@ -862,6 +1061,7 @@ export default function Admin() {
               );
             })
           )}
+          </>}
         </div>
       )}
 

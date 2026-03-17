@@ -578,4 +578,81 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return ok({"success": True})
 
+    # GET games — список игр (публичный)
+    if method == "GET" and action == "games":
+        conn = get_conn()
+        cur = conn.cursor()
+        schema = os.environ.get("MAIN_DB_SCHEMA", "public")
+        cur.execute(f"SELECT id, name, image, description, badge, sort_order FROM {schema}.catalog_games ORDER BY sort_order, id")
+        rows = cur.fetchall()
+        conn.close()
+        games = [{"id": r[0], "name": r[1], "image": r[2], "description": r[3], "badge": r[4], "sort_order": r[5]} for r in rows]
+        return ok({"games": games})
+
+    # POST game_create — создать игру (admin)
+    if method == "POST" and action == "game_create":
+        if not is_admin:
+            return err("Нет доступа", 403)
+        gid = body.get("id", "").strip().lower().replace(" ", "-")
+        name = body.get("name", "").strip()
+        image = body.get("image", "")
+        description = body.get("description", "")
+        badge = body.get("badge") or None
+        sort_order = int(body.get("sort_order", 0))
+        if not gid or not name:
+            return err("Нужны id и name")
+        conn = get_conn()
+        cur = conn.cursor()
+        schema = os.environ.get("MAIN_DB_SCHEMA", "public")
+        cur.execute(
+            f"INSERT INTO {schema}.catalog_games (id, name, image, description, badge, sort_order) VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT (id) DO NOTHING RETURNING id",
+            (gid, name, image, description, badge, sort_order)
+        )
+        result = cur.fetchone()
+        conn.commit()
+        conn.close()
+        if not result:
+            return err("Игра с таким ID уже существует")
+        return ok({"success": True, "id": gid})
+
+    # POST game_update — обновить игру (admin)
+    if method == "POST" and action == "game_update":
+        if not is_admin:
+            return err("Нет доступа", 403)
+        gid = body.get("id")
+        if not gid:
+            return err("Нужен id")
+        conn = get_conn()
+        cur = conn.cursor()
+        schema = os.environ.get("MAIN_DB_SCHEMA", "public")
+        fields = []
+        values = []
+        for field in ["name", "image", "description", "badge", "sort_order"]:
+            if field in body:
+                fields.append(f"{field} = %s")
+                values.append(body[field] or None if field == "badge" else body[field])
+        if not fields:
+            conn.close()
+            return err("Нет полей для обновления")
+        values.append(gid)
+        cur.execute(f"UPDATE {schema}.catalog_games SET {', '.join(fields)} WHERE id = %s", values)
+        conn.commit()
+        conn.close()
+        return ok({"success": True})
+
+    # POST game_delete — удалить игру (admin)
+    if method == "POST" and action == "game_delete":
+        if not is_admin:
+            return err("Нет доступа", 403)
+        gid = body.get("id")
+        if not gid:
+            return err("Нужен id")
+        conn = get_conn()
+        cur = conn.cursor()
+        schema = os.environ.get("MAIN_DB_SCHEMA", "public")
+        cur.execute(f"DELETE FROM {schema}.catalog_games WHERE id = %s", (gid,))
+        conn.commit()
+        conn.close()
+        return ok({"success": True})
+
     return err("Неизвестный action", 404)

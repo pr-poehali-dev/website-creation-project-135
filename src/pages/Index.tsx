@@ -254,11 +254,19 @@ export default function Index() {
   const [dbPrices, setDbPrices] = useState<Record<string, number>>({});
   const [dbStock, setDbStock] = useState<Record<string, number>>({});
   const [dbCatalog, setDbCatalog] = useState<CatalogItem[]>([]);
+  const [dbGames, setDbGames] = useState<Game[]>([]);
   const [reviewsExpanded, setReviewsExpanded] = useState(false);
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
 
   useEffect(() => {
     setLoaded(true);
+
+    function loadGames() {
+      fetch(`${ORDERS_URL}?action=games`)
+        .then(r => r.json())
+        .then(d => { if (d.games && d.games.length > 0) setDbGames(d.games); })
+        .catch(() => {});
+    }
 
     function loadCatalog() {
       fetch(`${ORDERS_URL}?action=catalog`)
@@ -293,6 +301,7 @@ export default function Index() {
         .catch(() => {});
     }
 
+    loadGames();
     loadCatalog();
     loadPrices();
     loadStock();
@@ -498,7 +507,7 @@ export default function Index() {
             <div>
               <p className="text-white/40 font-body text-sm mb-6 text-center">Выбери игру, чтобы увидеть товары</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {GAMES.map((game) => (
+                {(dbGames.length > 0 ? dbGames : GAMES).map((game) => (
                   <button
                     key={game.id}
                     onClick={() => setSelectedGame(game.id)}
@@ -544,7 +553,7 @@ export default function Index() {
               </button>
 
               {/* Баннер игры */}
-              {GAMES.filter(g => g.id === selectedGame).map(game => (
+              {(dbGames.length > 0 ? dbGames : GAMES).filter(g => g.id === selectedGame).map(game => (
                 <div key={game.id} className="rounded-2xl overflow-hidden mb-8 relative h-36"
                   style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
                   <img src={game.image} alt={game.name} className="w-full h-full object-cover" />
