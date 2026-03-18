@@ -29,12 +29,7 @@ type StockRow = { item_id: number; available: number; total: number };
 type Account = { id: string; credentials: string; is_sold: boolean; sold_at: string | null; created_at: string };
 type CatalogItemAdmin = { id: number; name: string; price_usd: number; stock: number; emoji: string; game: string; sort_order: number; category?: string; image?: string | null };
 
-const GAME_CATEGORIES: Record<string, { id: string; label: string }[]> = {
-  "ew": [
-    { id: "units", label: "🗡️ Юниты" },
-    { id: "currency", label: "💰 Валюта" },
-  ],
-};
+
 
 
 function NewItemForm({ token, onCreated, gamesList, usdRate }: { token: string; onCreated: () => void; gamesList: { id: string; name: string }[]; usdRate: number }) {
@@ -192,11 +187,12 @@ export default function Admin() {
   const [uploadingImage, setUploadingImage] = useState(false);
 
   // Catalog games
-  type GameAdmin = { id: string; name: string; image: string; description: string; badge: string | null; sort_order: number };
+  type GameCategory = { id: string; label: string };
+  type GameAdmin = { id: string; name: string; image: string; description: string; badge: string | null; sort_order: number; categories: GameCategory[] };
   const [games, setGames] = useState<GameAdmin[]>([]);
   const [editingGame, setEditingGame] = useState<GameAdmin | null>(null);
   const [showNewGameForm, setShowNewGameForm] = useState(false);
-  const [newGame, setNewGame] = useState<Partial<GameAdmin>>({ id: "", name: "", image: "", description: "", badge: "", sort_order: 0 });
+  const [newGame, setNewGame] = useState<Partial<GameAdmin>>({ id: "", name: "", image: "", description: "", badge: "", sort_order: 0, categories: [] });
   const [gamesMsg, setGamesMsg] = useState("");
 
   // Chats
@@ -232,6 +228,10 @@ export default function Admin() {
   const [inlineStockMsg, setInlineStockMsg] = useState("");
 
   const isAuthed = !!token;
+
+  // Динамические категории из данных игр
+  const gameCategories: Record<string, { id: string; label: string }[]> = {};
+  games.forEach(g => { if (g.categories?.length) gameCategories[g.id] = g.categories; });
 
   async function fetchUsdRate() {
     try {
@@ -480,7 +480,7 @@ export default function Admin() {
     } else setGamesMsg("❌ " + (data.error || "Ошибка"));
   }
 
-  async function updateGame(g: { id: string; name: string; image: string; description: string; badge: string | null; sort_order: number }) {
+  async function updateGame(g: GameAdmin) {
     const res = await fetch(`${ORDERS_URL}?action=game_update`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Admin-Token": token },
@@ -1072,6 +1072,53 @@ export default function Admin() {
                               className="w-full px-3 py-2 rounded-xl font-body text-sm text-white outline-none"
                               style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
                           </div>
+                          {/* Редактор категорий */}
+                          <div className="sm:col-span-2">
+                            <label className="font-body text-white/40 text-xs mb-2 block">Категории товаров</label>
+                            <div className="flex flex-col gap-2">
+                              {(editingGame.categories || []).map((cat, idx) => (
+                                <div key={idx} className="flex gap-2 items-center">
+                                  <input
+                                    value={cat.label}
+                                    onChange={e => setEditingGame(p => {
+                                      if (!p) return p;
+                                      const cats = [...(p.categories || [])];
+                                      cats[idx] = { ...cats[idx], label: e.target.value };
+                                      return { ...p, categories: cats };
+                                    })}
+                                    placeholder="🗡️ Юниты"
+                                    className="flex-1 px-3 py-1.5 rounded-lg font-body text-sm text-white outline-none"
+                                    style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
+                                  <input
+                                    value={cat.id}
+                                    onChange={e => setEditingGame(p => {
+                                      if (!p) return p;
+                                      const cats = [...(p.categories || [])];
+                                      cats[idx] = { ...cats[idx], id: e.target.value };
+                                      return { ...p, categories: cats };
+                                    })}
+                                    placeholder="units"
+                                    className="w-28 px-3 py-1.5 rounded-lg font-mono text-xs text-white outline-none"
+                                    style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
+                                  <button
+                                    onClick={() => setEditingGame(p => {
+                                      if (!p) return p;
+                                      const cats = (p.categories || []).filter((_, i) => i !== idx);
+                                      return { ...p, categories: cats };
+                                    })}
+                                    className="w-7 h-7 rounded-lg text-red-400/60 hover:text-red-400 transition-colors flex items-center justify-center text-sm flex-shrink-0"
+                                    style={{ background: "rgba(232,52,58,0.07)" }}>✕</button>
+                                </div>
+                              ))}
+                              <button
+                                onClick={() => setEditingGame(p => p ? { ...p, categories: [...(p.categories || []), { id: "", label: "" }] } : p)}
+                                className="px-3 py-1.5 rounded-lg font-body text-xs text-white/50 hover:text-white transition-colors self-start"
+                                style={{ background: "rgba(255,255,255,0.05)", border: "1px dashed rgba(255,255,255,0.15)" }}>
+                                + Добавить категорию
+                              </button>
+                              <p className="font-body text-white/25 text-xs">Слева — название (с эмодзи), справа — ID (латиница)</p>
+                            </div>
+                          </div>
                         </div>
                         <div className="flex gap-2">
                           <button onClick={() => updateGame(editingGame)}
@@ -1090,9 +1137,17 @@ export default function Admin() {
                         <div className="flex-1 min-w-0">
                           <div className="font-body text-white text-sm font-bold">{game.name}</div>
                           <div className="font-body text-white/40 text-xs truncate">{game.description}</div>
-                          {game.badge && <span className="font-body text-xs text-yellow-400">{game.badge}</span>}
+                          <div className="flex gap-1.5 flex-wrap mt-0.5">
+                            {game.badge && <span className="font-body text-xs text-yellow-400">{game.badge}</span>}
+                            {game.categories?.length > 0 && (
+                              <span className="font-body text-xs px-2 py-0.5 rounded-full"
+                                style={{ background: "rgba(0,102,255,0.15)", color: "#4DA6FF", border: "1px solid rgba(0,102,255,0.25)" }}>
+                                {game.categories.length} катег.
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <button onClick={() => setEditingGame({ ...game })}
+                        <button onClick={() => setEditingGame({ ...game, categories: game.categories || [] })}
                           className="px-3 py-1.5 rounded-lg font-body text-xs text-white/60 hover:text-white"
                           style={{ background: "rgba(255,255,255,0.05)" }}>✏️</button>
                         <button onClick={() => deleteGame(game.id)}
@@ -1171,11 +1226,11 @@ export default function Admin() {
                   </select>
                 </div>
 
-                {GAME_CATEGORIES[newItem.game || ""] && (
+                {gameCategories[newItem.game || ""] && (
                   <div className="sm:col-span-2">
                     <label className="font-body text-white/40 text-xs mb-1 block">Категория</label>
                     <div className="flex gap-2">
-                      {GAME_CATEGORIES[newItem.game || ""].map(cat => (
+                      {gameCategories[newItem.game || ""].map(cat => (
                         <button key={cat.id} onClick={() => setNewItem(p => ({ ...p, category: cat.id }))}
                           className="px-4 py-2 rounded-xl font-body text-sm transition-all"
                           style={{
@@ -1277,10 +1332,10 @@ export default function Admin() {
                                   className="flex-1 px-2 py-1.5 rounded-lg font-body text-sm text-white outline-none"
                                   style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
                               </div>
-                              {GAME_CATEGORIES[editingItem.game] && (
+                              {gameCategories[editingItem.game] && (
                                 <div className="col-span-2 sm:col-span-4 flex gap-2 flex-wrap">
                                   <span className="font-body text-white/30 text-xs self-center">Категория:</span>
-                                  {GAME_CATEGORIES[editingItem.game].map(cat => (
+                                  {gameCategories[editingItem.game].map(cat => (
                                     <button key={cat.id} onClick={() => setEditingItem(p => p ? { ...p, category: cat.id } : p)}
                                       className="px-3 py-1 rounded-lg font-body text-xs transition-all"
                                       style={{

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Icon from "@/components/ui/icon";
 import BuyModal from "@/components/BuyModal";
@@ -22,6 +22,7 @@ export type Game = {
   image: string;
   description: string;
   badge?: string;
+  categories?: { id: string; label: string }[];
 };
 
 export const GAMES: Game[] = [
@@ -107,19 +108,18 @@ type Props = {
   onOpenSupport: () => void;
 };
 
-const GAME_CATEGORIES: Record<string, { id: string; label: string }[]> = {
-  "ew": [
-    { id: "all", label: "Все" },
-    { id: "currency", label: "💰 Валюта" },
-    { id: "units", label: "🗡️ Юниты" },
-  ],
-};
-
 export default function CatalogSection({ dbCatalog, dbGames, dbPrices, dbStock, usdRate, selectedGame, onSelectGame, onOpenSupport }: Props) {
   const games = dbGames.length > 0 ? dbGames : GAMES;
+  // Динамические категории из данных игры
+  const selectedGameData = games.find(g => g.id === selectedGame);
+  const gameCategories = selectedGameData?.categories?.length
+    ? [{ id: "all", label: "Все" }, ...selectedGameData.categories]
+    : null;
   const items = dbCatalog.length > 0 ? dbCatalog : catalogItems;
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [search, setSearch] = useState("");
+
+  useEffect(() => { setSelectedCategory("all"); }, [selectedGame]);
 
   const searchQuery = search.trim().toLowerCase();
   const searchResults = searchQuery.length >= 2
@@ -228,9 +228,9 @@ export default function CatalogSection({ dbCatalog, dbGames, dbPrices, dbStock, 
             ))}
 
             {/* Табы категорий (только для игр с категориями) */}
-            {selectedGame && GAME_CATEGORIES[selectedGame] && (
-              <div className="flex gap-2 mb-6">
-                {GAME_CATEGORIES[selectedGame].map(cat => (
+            {selectedGame && gameCategories && (
+              <div className="flex gap-2 mb-6 flex-wrap">
+                {gameCategories.map(cat => (
                   <button key={cat.id} onClick={() => setSelectedCategory(cat.id)}
                     className="px-4 py-2 rounded-xl font-body text-sm font-bold transition-all"
                     style={{
@@ -249,8 +249,8 @@ export default function CatalogSection({ dbCatalog, dbGames, dbPrices, dbStock, 
                 {items
                   .filter(i => i.game === selectedGame)
                   .filter(i => {
-                    if (!selectedGame || !GAME_CATEGORIES[selectedGame] || selectedCategory === "all") return true;
-                    return (i.category || "units") === selectedCategory;
+                    if (!selectedGame || !gameCategories || selectedCategory === "all") return true;
+                    return i.category === selectedCategory;
                   })
                   .map((item) => (
                     <CatalogCard key={item.id} usdRate={usdRate} item={{ ...item, priceUsd: dbPrices[String(item.id)] ?? item.priceUsd, stock: dbStock[String(item.id)] ?? item.stock }} />
