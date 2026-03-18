@@ -32,18 +32,19 @@ type CatalogItemAdmin = { id: number; name: string; price_usd: number; stock: nu
 
 function NewItemForm({ token, onCreated, gamesList }: { token: string; onCreated: () => void; gamesList: { id: string; name: string }[] }) {
   const [name, setName] = useState("");
-  const [itemId, setItemId] = useState("");
   const [priceUsd, setPriceUsd] = useState("");
   const [emoji, setEmoji] = useState("🎮");
-  const [game, setGame] = useState("steal-a-brainrot");
+  const [game, setGame] = useState(() => gamesList[0]?.id || "steal-a-brainrot");
   const [category, setCategory] = useState("lucky");
   const [credentials, setCredentials] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
 
+  const accountLines = credentials.trim() ? credentials.trim().split("\n").filter(l => l.trim()).length : 0;
+
   async function handleSave() {
-    if (!name.trim() || !itemId.trim() || !priceUsd.trim()) {
-      setMsg("❌ Заполни название, ID и цену");
+    if (!name.trim() || !priceUsd.trim()) {
+      setMsg("❌ Заполни название и цену");
       return;
     }
     setSaving(true);
@@ -57,19 +58,20 @@ function NewItemForm({ token, onCreated, gamesList }: { token: string; onCreated
     const catalogData = await catalogRes.json();
     if (catalogData.error) { setMsg("❌ " + catalogData.error); setSaving(false); return; }
 
+    const newId = catalogData.id;
     const lines = credentials.trim().split("\n").filter(l => l.trim());
-    if (lines.length > 0) {
+    if (lines.length > 0 && newId) {
       const res = await fetch(`${ORDERS_URL}?action=add_stock`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Admin-Token": token },
-        body: JSON.stringify({ item_id: parseInt(itemId), credentials: lines }),
+        body: JSON.stringify({ item_id: newId, credentials: lines }),
       });
       const data = await res.json();
       if (data.error) { setMsg("❌ " + data.error); setSaving(false); return; }
     }
-    setMsg(`✅ Товар добавлен в каталог${lines.length > 0 ? ` и ${lines.length} аккаунтов загружено` : ""}`);
+    setMsg(`✅ Товар создан${lines.length > 0 ? ` · ${lines.length} лотов загружено` : " · лоты можно добавить позже"}`);
     setSaving(false);
-    setTimeout(() => onCreated(), 1200);
+    setTimeout(() => onCreated(), 1400);
   }
 
   return (
@@ -78,13 +80,12 @@ function NewItemForm({ token, onCreated, gamesList }: { token: string; onCreated
       <div className="rounded-2xl p-5 flex flex-col gap-4"
         style={{ background: "#161F2C", border: "1px solid rgba(0,102,255,0.2)" }}>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="font-body text-white/50 text-xs mb-1.5 block">ID товара (число)</label>
-            <input value={itemId} onChange={e => setItemId(e.target.value)} placeholder="Например: 100"
-              className="w-full px-3 py-2.5 rounded-xl font-mono text-sm text-white outline-none"
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-2">
+            <label className="font-body text-white/50 text-xs mb-1.5 block">Название товара</label>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Например: Cool Pack x10"
+              className="w-full px-3 py-2.5 rounded-xl font-body text-sm text-white outline-none"
               style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
-            <p className="font-body text-white/25 text-xs mt-1">Уникальный номер, не повторяй</p>
           </div>
           <div>
             <label className="font-body text-white/50 text-xs mb-1.5 block">Эмодзи</label>
@@ -94,22 +95,14 @@ function NewItemForm({ token, onCreated, gamesList }: { token: string; onCreated
           </div>
         </div>
 
-        <div>
-          <label className="font-body text-white/50 text-xs mb-1.5 block">Название товара</label>
-          <input value={name} onChange={e => setName(e.target.value)} placeholder="Например: Cool Pack x10"
-            className="w-full px-3 py-2.5 rounded-xl font-body text-sm text-white outline-none"
-            style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
-        </div>
-
-        <div>
-          <label className="font-body text-white/50 text-xs mb-1.5 block">Цена в долларах ($)</label>
-          <input value={priceUsd} onChange={e => setPriceUsd(e.target.value)} placeholder="1.50"
-            type="number" step="0.01" min="0.01"
-            className="w-full px-3 py-2.5 rounded-xl font-body text-sm text-white outline-none"
-            style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
-        </div>
-
         <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="font-body text-white/50 text-xs mb-1.5 block">Цена ($)</label>
+            <input value={priceUsd} onChange={e => setPriceUsd(e.target.value)} placeholder="1.50"
+              type="number" step="0.01" min="0.01"
+              className="w-full px-3 py-2.5 rounded-xl font-body text-sm text-white outline-none"
+              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+          </div>
           <div>
             <label className="font-body text-white/50 text-xs mb-1.5 block">Игра</label>
             <select value={game} onChange={e => setGame(e.target.value)}
@@ -118,33 +111,58 @@ function NewItemForm({ token, onCreated, gamesList }: { token: string; onCreated
               {gamesList.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
           </div>
-          <div>
-            <label className="font-body text-white/50 text-xs mb-1.5 block">Категория</label>
-            <select value={category} onChange={e => setCategory(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl font-body text-sm text-white outline-none"
-              style={{ background: "#1e2a3a", border: "1px solid rgba(255,255,255,0.1)" }}>
-              <option value="lucky">Lucky</option>
-              <option value="other">Other</option>
-            </select>
+        </div>
+
+        <div>
+          <label className="font-body text-white/50 text-xs mb-1.5 block">Категория</label>
+          <div className="flex gap-2">
+            {["lucky", "other"].map(cat => (
+              <button key={cat} onClick={() => setCategory(cat)}
+                className="px-4 py-2 rounded-xl font-body text-sm transition-all"
+                style={{
+                  background: category === cat ? "rgba(0,102,255,0.25)" : "rgba(255,255,255,0.05)",
+                  border: `1px solid ${category === cat ? "rgba(0,102,255,0.5)" : "rgba(255,255,255,0.1)"}`,
+                  color: category === cat ? "#4DA6FF" : "rgba(255,255,255,0.4)"
+                }}>
+                {cat === "lucky" ? "Lucky" : "Other"}
+              </button>
+            ))}
           </div>
         </div>
 
         <div>
-          <label className="font-body text-white/50 text-xs mb-1.5 block">Аккаунты (по одному на строку)</label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="font-body text-white/50 text-xs">Лоты (по одному на строку)</label>
+            {accountLines > 0 && (
+              <span className="font-body text-xs px-2 py-0.5 rounded-full"
+                style={{ background: "rgba(0,208,128,0.15)", color: "#00D080", border: "1px solid rgba(0,208,128,0.25)" }}>
+                {accountLines} лот{accountLines === 1 ? "" : accountLines < 5 ? "а" : "ов"}
+              </span>
+            )}
+          </div>
           <textarea value={credentials} onChange={e => setCredentials(e.target.value)}
-            rows={5} placeholder={"login1:pass1\nlogin2:pass2"}
+            rows={6} placeholder={"login1:pass1\nlogin2:pass2\n..."}
             className="w-full px-3 py-2 rounded-xl font-mono text-sm text-white outline-none resize-none"
             style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
-          <p className="font-body text-white/25 text-xs mt-1">Можно оставить пустым и добавить потом</p>
+          <p className="font-body text-white/25 text-xs mt-1">Можно оставить пустым — добавишь лоты позже</p>
         </div>
 
-        {msg && <p className="font-body text-sm" style={{ color: msg.startsWith("✅") ? "#00D080" : "#FF6B6B" }}>{msg}</p>}
+        {msg && (
+          <div className="px-4 py-3 rounded-xl font-body text-sm"
+            style={{
+              background: msg.startsWith("✅") ? "rgba(0,208,128,0.1)" : "rgba(255,107,107,0.1)",
+              border: `1px solid ${msg.startsWith("✅") ? "rgba(0,208,128,0.25)" : "rgba(255,107,107,0.25)"}`,
+              color: msg.startsWith("✅") ? "#00D080" : "#FF6B6B"
+            }}>
+            {msg}
+          </div>
+        )}
 
         <div className="flex gap-3">
           <button onClick={handleSave} disabled={saving}
-            className="flex-1 py-3 rounded-xl font-body font-bold text-sm text-white disabled:opacity-40"
+            className="flex-1 py-3 rounded-xl font-body font-bold text-sm text-white disabled:opacity-40 transition-opacity"
             style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
-            {saving ? "Создаём..." : "✅ Создать товар"}
+            {saving ? "Создаём..." : `✅ Создать${accountLines > 0 ? ` · ${accountLines} лот${accountLines === 1 ? "" : accountLines < 5 ? "а" : "ов"}` : ""}`}
           </button>
           <button onClick={onCreated}
             className="px-5 py-3 rounded-xl font-body text-sm text-white/50 hover:text-white transition-colors"
@@ -152,12 +170,6 @@ function NewItemForm({ token, onCreated, gamesList }: { token: string; onCreated
             Отмена
           </button>
         </div>
-      </div>
-
-      <div className="mt-4 p-4 rounded-xl" style={{ background: "rgba(0,208,128,0.07)", border: "1px solid rgba(0,208,128,0.15)" }}>
-        <p className="font-body text-green-400/70 text-xs leading-relaxed">
-          ✅ Товар сразу появится в каталоге магазина в выбранной игре.
-        </p>
       </div>
     </div>
   );
