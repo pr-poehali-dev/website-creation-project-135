@@ -66,6 +66,7 @@ export default function ChatWidget() {
   const [orderStatus, setOrderStatus] = useState<string | null>(null);
   const [orderLoading, setOrderLoading] = useState(false);
   const [serverOrders, setServerOrders] = useState<ServerOrder[]>([]);
+  const [orderChatMode, setOrderChatMode] = useState<{ orderId: string; itemName: string } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const visitorId = getVisitorId();
 
@@ -152,6 +153,26 @@ export default function ChatWidget() {
           localStorage.removeItem("cambeck_pending_order");
           setPendingOrder(null);
         }
+      }
+    } catch { /* ignore */ }
+    setOrderLoading(false);
+  }
+
+  async function openOrderChat(orderId: string, itemName: string) {
+    // Создаём/получаем чат по заказу
+    setOrderLoading(true);
+    try {
+      const res = await fetch(`${CHAT_URL}?action=order_chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Visitor-Id": visitorId },
+        body: JSON.stringify({ order_id: orderId, visitor_id: visitorId, visitor_name: visitorName || "Покупатель" }),
+      });
+      const data = await res.json();
+      if (data.chat_id) {
+        setChatId(data.chat_id);
+        setOrderChatMode({ orderId, itemName });
+        setOperatorRequested(true);
+        setActiveTab("chat");
       }
     } catch { /* ignore */ }
     setOrderLoading(false);
@@ -353,8 +374,9 @@ export default function ChatWidget() {
                           </div>
                           {paidAt && <div className="font-body text-white/30 text-xs mb-3">{paidAt}</div>}
                           <button
-                            onClick={() => setActiveTab("chat")}
-                            className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
+                            onClick={() => openOrderChat(order.order_id, order.item_name)}
+                            disabled={orderLoading}
+                            className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105 disabled:opacity-50"
                             style={{ background: "rgba(0,102,255,0.2)", border: "1px solid rgba(0,102,255,0.3)" }}>
                             <Icon name="MessageCircle" size={14} />
                             Написать продавцу
@@ -371,6 +393,21 @@ export default function ChatWidget() {
           {/* ===== ВКЛАДКА ЧАТ ===== */}
           {activeTab === "chat" && (
             <>
+              {/* Шапка чата по заказу */}
+              {orderChatMode && (
+                <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/5 flex-shrink-0"
+                  style={{ background: "rgba(0,102,255,0.08)" }}>
+                  <button onClick={() => { setOrderChatMode(null); setOperatorRequested(false); setChatId(null); setMessages([]); setActiveTab("orders"); }}
+                    className="text-white/40 hover:text-white transition-colors">
+                    <Icon name="ArrowLeft" size={15} />
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-body font-bold text-white text-xs truncate">📦 {orderChatMode.itemName}</p>
+                    <p className="font-body text-white/40 text-xs">#{orderChatMode.orderId.slice(0,8).toUpperCase()}</p>
+                  </div>
+                </div>
+              )}
+
               {!nameEntered ? (
                 <div className="flex flex-col items-center justify-center flex-1 px-5 gap-4">
                   <div className="text-3xl">👋</div>

@@ -82,7 +82,7 @@ def handler(event: dict, context) -> dict:
         type_val = (chat_type,) if chat_type else ()
         cur.execute(f"""
             SELECT c.id, c.visitor_id, c.visitor_name, c.status, c.created_at, c.updated_at,
-                   c.chat_type,
+                   c.chat_type, c.order_id,
                    (SELECT text FROM {s}.messages WHERE chat_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message,
                    (SELECT COUNT(*) FROM {s}.messages WHERE chat_id = c.id AND sender = 'visitor') as msg_count
             FROM {s}.chats c
@@ -92,7 +92,8 @@ def handler(event: dict, context) -> dict:
         rows = cur.fetchall()
         chats = [{"id": str(r[0]), "visitor_id": r[1], "visitor_name": r[2], "status": r[3],
                   "created_at": r[4], "updated_at": r[5], "chat_type": r[6],
-                  "last_message": r[7], "msg_count": int(r[8])} for r in rows]
+                  "order_id": str(r[7]) if r[7] else None,
+                  "last_message": r[8], "msg_count": int(r[9])} for r in rows]
         conn.close()
         return ok({"chats": chats})
 
@@ -123,6 +124,54 @@ def handler(event: dict, context) -> dict:
         messages = [{"id": str(r[0]), "sender": r[1], "text": r[2], "created_at": r[3]} for r in rows]
         conn.close()
         return ok({"chat_id": chat_id, "messages": messages, "chat_status": chat_status})
+
+    # POST order_chat — создать или получить чат по заказу
+    if method == "POST" and action == "order_chat":
+        order_id  = body.get("order_id", "").strip()
+        visitor_id   = headers_in.get("X-Visitor-Id", body.get("visitor_id", ""))
+        visitor_name = body.get("visitor_name", "Покупатель")
+        if not order_id:
+            return err("order_id required")
+        conn = get_conn()
+        cur  = conn.cursor()
+        # Ищем существующий чат по заказу
+        cur.execute(
+            f"SELECT id, status FROM {s}.chats WHERE order_id = %s LIMIT 1",
+            (order_id,)
+        )
+        row = cur.fetchone()
+        if row:
+            chat_id = str(row[0])
+            # Переоткрываем если закрыт
+            if row[1] != "open":
+                cur.execute(f"UPDATE {s}.chats SET status = 'open' WHERE id = %s", (chat_id,))
+        else:
+            # Берём item_name из заказа для заголовка
+            cur.execute(
+                f"SELECT item_name FROM {s}.orders WHERE id = %s",
+                (order_id,)
+            )
+            order_row = cur.fetchone()
+            item_name = order_row[0] if order_row else "Заказ"
+            cur.execute(
+                f"""INSERT INTO {s}.chats (visitor_id, visitor_name, status, chat_type, order_id)
+                    VALUES (%s, %s, 'open', 'order', %s) RETURNING id""",
+                (visitor_id, visitor_name, order_id)
+            )
+            chat_id = str(cur.fetchone()[0])
+            # Первое системное сообщение
+            welcome = f"💬 Чат по заказу #{order_id[:8].upper()} — {item_name}\nПродавец ответит в ближайшее время."
+            cur.execute(
+                f"INSERT INTO {s}.messages (chat_id, sender, text) VALUES (%s, 'admin', %s)",
+                (chat_id, welcome)
+            )
+            cur.execute(
+                f"UPDATE {s}.chats SET updated_at = NOW(), last_message = %s WHERE id = %s",
+                (welcome[:200], chat_id)
+            )
+        conn.commit()
+        conn.close()
+        return ok({"chat_id": chat_id})
 
     # POST message
     if method == "POST" and action == "message":

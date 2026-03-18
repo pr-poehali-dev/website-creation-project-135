@@ -21,7 +21,7 @@ const CATALOG_ITEMS = [
   { id: 13, name: "Leprechaun Lucky Block x10" },
 ];
 
-type Chat = { id: string; visitor_name: string; visitor_id: string; status: string; last_message: string; msg_count: number; updated_at: string; };
+type Chat = { id: string; visitor_name: string; visitor_id: string; status: string; last_message: string; msg_count: number; updated_at: string; chat_type?: string; order_id?: string | null; };
 type Message = { id: string; sender: string; text: string; created_at: string };
 type Order = { order_id: string; item_name: string; amount_usd: number; quantity: number; network: string; status: string; created_at: string; };
 type StockRow = { item_id: number; available: number; total: number };
@@ -1163,6 +1163,11 @@ export default function Admin() {
                     <span className="font-body font-bold text-sm text-white truncate">{chat.visitor_name}</span>
                     <span className={`w-2 h-2 rounded-full flex-shrink-0 ml-2 ${chat.status === "open" ? "bg-green-400" : "bg-white/20"}`} />
                   </div>
+                  {chat.chat_type === "order" && chat.order_id && (
+                    <p className="font-mono text-xs mb-1" style={{ color: "#FFB800" }}>
+                      📦 #{chat.order_id.slice(0, 8).toUpperCase()}
+                    </p>
+                  )}
                   <p className="font-body text-xs text-white/40 truncate">{chat.last_message || "Нет сообщений"}</p>
                   <p className="font-body text-xs text-white/20 mt-1">{timeAgo(chat.updated_at)}</p>
                 </button>
@@ -1182,10 +1187,20 @@ export default function Admin() {
                 <div className="h-14 flex items-center justify-between px-5 border-b border-white/5 flex-shrink-0"
                   style={{ background: "#161F2C" }}>
                   <div>
-                    <span className="font-body font-bold text-white">{selectedChat.visitor_name}</span>
-                    <span className={`ml-2 text-xs font-body ${selectedChat.status === "open" ? "text-green-400" : "text-white/30"}`}>
-                      {selectedChat.status === "open" ? "• открыт" : "• закрыт"}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-body font-bold text-white">{selectedChat.visitor_name}</span>
+                      {selectedChat.chat_type === "order" && (
+                        <span className="px-1.5 py-0.5 rounded font-body font-bold text-xs" style={{ background: "rgba(255,184,0,0.15)", color: "#FFB800" }}>
+                          📦 Заказ
+                        </span>
+                      )}
+                      <span className={`text-xs font-body ${selectedChat.status === "open" ? "text-green-400" : "text-white/30"}`}>
+                        {selectedChat.status === "open" ? "• открыт" : "• закрыт"}
+                      </span>
+                    </div>
+                    {selectedChat.chat_type === "order" && selectedChat.order_id && (
+                      <p className="font-mono text-xs text-white/30 mt-0.5">#{selectedChat.order_id.slice(0, 8).toUpperCase()}</p>
+                    )}
                   </div>
                   {selectedChat.status === "open" && (
                     <button onClick={() => closeChat(selectedChat.id)}
