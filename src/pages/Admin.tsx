@@ -29,15 +29,8 @@ type StockRow = { item_id: number; available: number; total: number };
 type Account = { id: string; credentials: string; is_sold: boolean; sold_at: string | null; created_at: string };
 type CatalogItemAdmin = { id: number; name: string; price_usd: number; stock: number; emoji: string; category: string; game: string; sort_order: number; image?: string | null };
 
-const GAMES_LIST = [
-  { id: "steal-a-brainrot", name: "Steal a Brainrot" },
-  { id: "blade-ball", name: "Blade Ball" },
-  { id: "rivals", name: "Rivals" },
-  { id: "blox-fruits", name: "Blox Fruits" },
-  { id: "gift-op", name: "Escape Tsunami For Brainrots!" },
-];
 
-function NewItemForm({ token, onCreated }: { token: string; onCreated: () => void }) {
+function NewItemForm({ token, onCreated, gamesList }: { token: string; onCreated: () => void; gamesList: { id: string; name: string }[] }) {
   const [name, setName] = useState("");
   const [itemId, setItemId] = useState("");
   const [priceUsd, setPriceUsd] = useState("");
@@ -122,7 +115,7 @@ function NewItemForm({ token, onCreated }: { token: string; onCreated: () => voi
             <select value={game} onChange={e => setGame(e.target.value)}
               className="w-full px-3 py-2.5 rounded-xl font-body text-sm text-white outline-none"
               style={{ background: "#1e2a3a", border: "1px solid rgba(255,255,255,0.1)" }}>
-              {GAMES_LIST.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              {gamesList.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
           </div>
           <div>
@@ -804,7 +797,7 @@ export default function Admin() {
               </div>
             ) : selectedItemId === -1 ? (
               /* Форма нового товара */
-              <NewItemForm token={token} onCreated={() => { fetchStockSummary(); setSelectedItemId(null); }} />
+              <NewItemForm token={token} onCreated={() => { fetchStockSummary(); setSelectedItemId(null); }} gamesList={games} />
             ) : (
               <>
                 <div className="flex items-center justify-between mb-5">
@@ -1122,7 +1115,7 @@ export default function Admin() {
                   <select value={newItem.game || "steal-a-brainrot"} onChange={e => setNewItem(p => ({ ...p, game: e.target.value }))}
                     className="w-full px-3 py-2 rounded-xl font-body text-sm text-white outline-none"
                     style={{ background: "#1e2a3a", border: "1px solid rgba(255,255,255,0.1)" }}>
-                    {GAMES_LIST.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                    {games.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -1160,7 +1153,7 @@ export default function Admin() {
           {catalogLoading ? (
             <p className="text-white/30 font-body text-sm">Загружаем...</p>
           ) : (
-            GAMES_LIST.map(game => {
+            games.map(game => {
               const items = catalogItems.filter(i => i.game === game.id);
               return (
                 <div key={game.id} className="mb-6">
