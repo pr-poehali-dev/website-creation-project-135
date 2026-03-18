@@ -85,7 +85,12 @@ export default function Login() {
           </div>
 
           <div>
-            <label className="font-body text-white/50 text-xs mb-1.5 block">Пароль</label>
+            <div className="flex justify-between items-center mb-1.5">
+              <label className="font-body text-white/50 text-xs">Пароль</label>
+              <Link to="/reset-password" className="font-body text-white/30 text-xs hover:text-blue-400 transition-colors">
+                Забыл пароль?
+              </Link>
+            </div>
             <div className="relative">
               <input
                 type={showPass ? "text" : "password"}

@@ -40,6 +40,23 @@
       "path": "/?action=me",
       "expectedStatus": 401,
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "Request reset for unknown email",
+      "method": "POST",
+      "path": "/?action=request_reset",
+      "body": {"email": "unknown999@example.com"},
+      "expectedStatus": 200,
+      "expectedBody": {"success": true},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Reset password with invalid token",
+      "method": "POST",
+      "path": "/?action=reset_password",
+      "body": {"token": "invalidtoken000", "password": "newpassword123"},
+      "expectedStatus": 400,
+      "bodyMatcher": "partial"
     }
   ]
 }
