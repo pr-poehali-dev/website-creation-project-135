@@ -100,6 +100,12 @@ export default function HeroSection({ loaded, activeSection, mobileMenuOpen, use
               </button>
             ))}
             <div className="border-t border-white/5 mt-1 pt-2">
+              <Link to="/oferta"
+                className="flex items-center gap-3 px-4 py-3 rounded-lg font-body text-sm text-white/60 hover:text-white hover:bg-white/5 transition-all"
+                onClick={onToggleMobile}>
+                <Icon name="FileText" size={16} />
+                Публичная оферта
+              </Link>
               {user ? (
                 <Link to="/profile"
                   className="flex items-center gap-3 px-4 py-3 rounded-lg font-body font-bold text-sm text-white hover:bg-white/5 transition-all"
