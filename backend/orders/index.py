@@ -600,15 +600,39 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return ok({"stock": {str(r[0]): int(r[1]) for r in rows}})
 
+    # POST upload_image — загрузить картинку в S3 (admin)
+    if method == "POST" and action == "upload_image":
+        if not is_admin:
+            return err("Нет доступа", 403)
+        import base64
+        import uuid
+        import boto3
+        image_b64 = body.get("image_b64", "")
+        ext = body.get("ext", "jpg")
+        if not image_b64:
+            return err("Нет данных изображения")
+        image_data = base64.b64decode(image_b64)
+        key = f"catalog/{uuid.uuid4().hex}.{ext}"
+        s3 = boto3.client(
+            "s3",
+            endpoint_url="https://bucket.poehali.dev",
+            aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+            aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+        )
+        content_type = f"image/{ext}" if ext != "jpg" else "image/jpeg"
+        s3.put_object(Bucket="files", Key=key, Body=image_data, ContentType=content_type)
+        url = f"https://cdn.poehali.dev/projects/{os.environ['AWS_ACCESS_KEY_ID']}/bucket/{key}"
+        return ok({"url": url})
+
     # GET catalog — список всех товаров из БД (публичный)
     if method == "GET" and action == "catalog":
         conn = get_conn()
         cur = conn.cursor()
         schema = os.environ.get("MAIN_DB_SCHEMA", "public")
-        cur.execute(f"SELECT id, name, price_usd, stock, emoji, category, game, sort_order FROM {schema}.catalog_items ORDER BY sort_order, id")
+        cur.execute(f"SELECT id, name, price_usd, stock, emoji, category, game, sort_order, image FROM {schema}.catalog_items ORDER BY sort_order, id")
         rows = cur.fetchall()
         conn.close()
-        items = [{"id": r[0], "name": r[1], "price_usd": float(r[2]), "stock": r[3], "emoji": r[4], "category": r[5], "game": r[6], "sort_order": r[7]} for r in rows]
+        items = [{"id": r[0], "name": r[1], "price_usd": float(r[2]), "stock": r[3], "emoji": r[4], "category": r[5], "game": r[6], "sort_order": r[7], "image": r[8]} for r in rows]
         return ok({"items": items})
 
     # POST catalog_create — создать товар (admin)
@@ -621,14 +645,15 @@ def handler(event: dict, context) -> dict:
         category = body.get("category", "other")
         game = body.get("game", "steal-a-brainrot")
         sort_order = body.get("sort_order", 0)
+        image = body.get("image", None)
         if not name:
             return err("Нужно название")
         conn = get_conn()
         cur = conn.cursor()
         schema = os.environ.get("MAIN_DB_SCHEMA", "public")
         cur.execute(
-            f"INSERT INTO {schema}.catalog_items (name, price_usd, stock, emoji, category, game, sort_order) VALUES (%s, %s, 0, %s, %s, %s, %s) RETURNING id",
-            (name, float(price_usd), emoji, category, game, int(sort_order))
+            f"INSERT INTO {schema}.catalog_items (name, price_usd, stock, emoji, category, game, sort_order, image) VALUES (%s, %s, 0, %s, %s, %s, %s, %s) RETURNING id",
+            (name, float(price_usd), emoji, category, game, int(sort_order), image)
         )
         new_id = cur.fetchone()[0]
         conn.commit()
@@ -647,7 +672,7 @@ def handler(event: dict, context) -> dict:
         schema = os.environ.get("MAIN_DB_SCHEMA", "public")
         fields = []
         values = []
-        for field in ["name", "price_usd", "stock", "emoji", "category", "game", "sort_order"]:
+        for field in ["name", "price_usd", "stock", "emoji", "category", "game", "sort_order", "image"]:
             if field in body:
                 fields.append(f"{field} = %s")
                 values.append(body[field])

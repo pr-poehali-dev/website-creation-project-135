@@ -26,7 +26,7 @@ type Message = { id: string; sender: string; text: string; created_at: string };
 type Order = { order_id: string; item_name: string; amount_usd: number; quantity: number; network: string; status: string; created_at: string; };
 type StockRow = { item_id: number; available: number; total: number };
 type Account = { id: string; credentials: string; is_sold: boolean; sold_at: string | null; created_at: string };
-type CatalogItemAdmin = { id: number; name: string; price_usd: number; stock: number; emoji: string; category: string; game: string; sort_order: number };
+type CatalogItemAdmin = { id: number; name: string; price_usd: number; stock: number; emoji: string; category: string; game: string; sort_order: number; image?: string | null };
 
 const GAMES_LIST = [
   { id: "steal-a-brainrot", name: "Steal a Brainrot" },
@@ -150,9 +150,10 @@ export default function Admin() {
   const [catalogItems, setCatalogItems] = useState<CatalogItemAdmin[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [editingItem, setEditingItem] = useState<CatalogItemAdmin | null>(null);
-  const [newItem, setNewItem] = useState<Partial<CatalogItemAdmin>>({ name: "", price_usd: 0, emoji: "📦", category: "lucky", game: "steal-a-brainrot", sort_order: 0 });
+  const [newItem, setNewItem] = useState<Partial<CatalogItemAdmin>>({ name: "", price_usd: 0, emoji: "📦", category: "lucky", game: "steal-a-brainrot", sort_order: 0, image: null });
   const [showNewItemForm, setShowNewItemForm] = useState(false);
   const [catalogMsg, setCatalogMsg] = useState("");
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Catalog games
   type GameAdmin = { id: string; name: string; image: string; description: string; badge: string | null; sort_order: number };
@@ -466,10 +467,34 @@ export default function Admin() {
     if (data.success) {
       setCatalogMsg("✅ Товар добавлен");
       setShowNewItemForm(false);
-      setNewItem({ name: "", price_usd: 0, emoji: "📦", category: "lucky", game: "steal-a-brainrot", sort_order: 0 });
+      setNewItem({ name: "", price_usd: 0, emoji: "📦", category: "lucky", game: "steal-a-brainrot", sort_order: 0, image: null });
       fetchCatalog();
       setTimeout(() => setCatalogMsg(""), 2000);
     } else setCatalogMsg("❌ " + (data.error || "Ошибка"));
+  }
+
+  async function uploadImage(file: File, onSuccess: (url: string) => void) {
+    setUploadingImage(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64 = (e.target?.result as string).split(",")[1];
+        const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+        const res = await fetch(`${ORDERS_URL}?action=upload_image`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+          body: JSON.stringify({ image_b64: base64, ext }),
+        });
+        const data = await res.json();
+        if (data.url) onSuccess(data.url);
+        else setCatalogMsg("❌ Ошибка загрузки");
+        setUploadingImage(false);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setCatalogMsg("❌ Ошибка загрузки");
+      setUploadingImage(false);
+    }
   }
 
   async function updateCatalogItem(item: CatalogItemAdmin) {
@@ -996,6 +1021,33 @@ export default function Admin() {
           {showNewItemForm && (
             <div className="rounded-2xl p-5 mb-5" style={{ background: "#161F2C", border: "1px solid rgba(0,102,255,0.25)" }}>
               <h3 className="font-display font-bold text-white text-base mb-4">Новый товар</h3>
+
+              {/* Загрузка картинки */}
+              <div className="mb-4">
+                <label className="font-body text-white/40 text-xs mb-2 block">Картинка товара</label>
+                <div className="flex items-center gap-3">
+                  {newItem.image ? (
+                    <div className="relative w-20 h-20 rounded-xl overflow-hidden flex-shrink-0"
+                      style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
+                      <img src={newItem.image} alt="" className="w-full h-full object-cover" />
+                      <button onClick={() => setNewItem(p => ({ ...p, image: null }))}
+                        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white text-xs flex items-center justify-center">✕</button>
+                    </div>
+                  ) : (
+                    <div className="w-20 h-20 rounded-xl flex-shrink-0 flex items-center justify-center text-3xl"
+                      style={{ background: "rgba(255,255,255,0.05)", border: "2px dashed rgba(255,255,255,0.15)" }}>
+                      {newItem.emoji || "📦"}
+                    </div>
+                  )}
+                  <label className={`flex-1 py-2.5 px-4 rounded-xl font-body font-bold text-sm text-center cursor-pointer transition-all hover:scale-105 ${uploadingImage ? "opacity-50" : ""}`}
+                    style={{ background: "rgba(0,102,255,0.15)", border: "1px solid rgba(0,102,255,0.3)", color: "#4DA6FF" }}>
+                    {uploadingImage ? "Загружаем..." : "📁 Выбрать файл"}
+                    <input type="file" accept="image/*" className="hidden" disabled={uploadingImage}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f, url => setNewItem(p => ({ ...p, image: url }))); }} />
+                  </label>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                 <div>
                   <label className="font-body text-white/40 text-xs mb-1 block">Название *</label>
@@ -1075,34 +1127,62 @@ export default function Admin() {
                       <div key={item.id} className="rounded-xl px-4 py-3 flex items-center gap-3"
                         style={{ background: "#161F2C", border: "1px solid rgba(255,255,255,0.06)" }}>
                         {editingItem?.id === item.id ? (
-                          <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2">
-                            <input value={editingItem.name} onChange={e => setEditingItem(p => p ? { ...p, name: e.target.value } : p)}
-                              className="col-span-2 px-2 py-1.5 rounded-lg font-body text-sm text-white outline-none"
-                              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
-                            <div className="flex gap-1">
-                              <span className="font-body text-white/40 text-xs self-center">$</span>
-                              <input type="number" step="0.01" value={editingItem.price_usd} onChange={e => setEditingItem(p => p ? { ...p, price_usd: parseFloat(e.target.value) } : p)}
-                                className="flex-1 px-2 py-1.5 rounded-lg font-body text-sm text-white outline-none"
-                                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
+                          <div className="flex-1 flex flex-col gap-2">
+                            {/* Картинка при редактировании */}
+                            <div className="flex items-center gap-2">
+                              {editingItem.image ? (
+                                <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0"
+                                  style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
+                                  <img src={editingItem.image} alt="" className="w-full h-full object-cover" />
+                                  <button onClick={() => setEditingItem(p => p ? { ...p, image: null } : p)}
+                                    className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 text-white text-xs flex items-center justify-center">✕</button>
+                                </div>
+                              ) : (
+                                <div className="w-14 h-14 rounded-lg flex items-center justify-center text-2xl flex-shrink-0"
+                                  style={{ background: "rgba(255,255,255,0.05)", border: "2px dashed rgba(255,255,255,0.15)" }}>
+                                  {editingItem.emoji}
+                                </div>
+                              )}
+                              <label className={`px-3 py-1.5 rounded-lg font-body text-xs cursor-pointer transition-all ${uploadingImage ? "opacity-50" : "hover:bg-white/10"}`}
+                                style={{ background: "rgba(0,102,255,0.15)", color: "#4DA6FF", border: "1px solid rgba(0,102,255,0.3)" }}>
+                                {uploadingImage ? "Загрузка..." : "📁 Заменить фото"}
+                                <input type="file" accept="image/*" className="hidden" disabled={uploadingImage}
+                                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f, url => setEditingItem(p => p ? { ...p, image: url } : p)); }} />
+                              </label>
                             </div>
-                            <div className="flex gap-1">
-                              <span className="font-body text-white/40 text-xs self-center">шт</span>
-                              <input type="number" value={editingItem.stock} onChange={e => setEditingItem(p => p ? { ...p, stock: parseInt(e.target.value) } : p)}
-                                className="flex-1 px-2 py-1.5 rounded-lg font-body text-sm text-white outline-none"
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                              <input value={editingItem.name} onChange={e => setEditingItem(p => p ? { ...p, name: e.target.value } : p)}
+                                className="col-span-2 px-2 py-1.5 rounded-lg font-body text-sm text-white outline-none"
                                 style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
-                            </div>
-                            <div className="col-span-2 sm:col-span-4 flex gap-2 mt-1">
-                              <button onClick={() => updateCatalogItem(editingItem)}
-                                className="px-4 py-1.5 rounded-lg font-body font-bold text-xs text-white"
-                                style={{ background: "#00D080" }}>Сохранить</button>
-                              <button onClick={() => setEditingItem(null)}
-                                className="px-4 py-1.5 rounded-lg font-body text-xs text-white/40 hover:text-white"
-                                style={{ background: "rgba(255,255,255,0.05)" }}>Отмена</button>
+                              <div className="flex gap-1">
+                                <span className="font-body text-white/40 text-xs self-center">$</span>
+                                <input type="number" step="0.01" value={editingItem.price_usd} onChange={e => setEditingItem(p => p ? { ...p, price_usd: parseFloat(e.target.value) } : p)}
+                                  className="flex-1 px-2 py-1.5 rounded-lg font-body text-sm text-white outline-none"
+                                  style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
+                              </div>
+                              <div className="flex gap-1">
+                                <span className="font-body text-white/40 text-xs self-center">шт</span>
+                                <input type="number" value={editingItem.stock} onChange={e => setEditingItem(p => p ? { ...p, stock: parseInt(e.target.value) } : p)}
+                                  className="flex-1 px-2 py-1.5 rounded-lg font-body text-sm text-white outline-none"
+                                  style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
+                              </div>
+                              <div className="col-span-2 sm:col-span-4 flex gap-2 mt-1">
+                                <button onClick={() => updateCatalogItem(editingItem)}
+                                  className="px-4 py-1.5 rounded-lg font-body font-bold text-xs text-white"
+                                  style={{ background: "#00D080" }}>Сохранить</button>
+                                <button onClick={() => setEditingItem(null)}
+                                  className="px-4 py-1.5 rounded-lg font-body text-xs text-white/40 hover:text-white"
+                                  style={{ background: "rgba(255,255,255,0.05)" }}>Отмена</button>
+                              </div>
                             </div>
                           </div>
                         ) : (
                           <>
-                            <span className="text-xl">{item.emoji}</span>
+                            {item.image ? (
+                              <img src={item.image} alt={item.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
+                            ) : (
+                              <span className="text-xl w-12 text-center flex-shrink-0">{item.emoji}</span>
+                            )}
                             <div className="flex-1 min-w-0">
                               <div className="font-body text-white text-sm truncate">{item.name}</div>
                               <div className="font-body text-white/40 text-xs">${item.price_usd} · {item.stock} шт в наличии</div>

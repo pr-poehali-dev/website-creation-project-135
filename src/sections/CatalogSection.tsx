@@ -13,6 +13,7 @@ export type CatalogItem = {
   emoji: string;
   category: "lucky" | "other";
   game: string;
+  image?: string | null;
 };
 
 export type Game = {
@@ -55,13 +56,21 @@ function CatalogCard({ item, usdRate = USD_TO_RUB_DEFAULT }: { item: CatalogItem
   return (
     <>
       <div className="rounded-2xl p-5" style={{ background: "rgba(22, 31, 44, 0.9)", border: `1px solid ${inStock ? "rgba(0,176,111,0.2)" : "rgba(255,255,255,0.05)"}`, opacity: inStock ? 1 : 0.7 }}>
+        {/* Картинка товара */}
+        {item.image && (
+          <div className="w-full h-32 rounded-xl overflow-hidden mb-3 -mt-1"
+            style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+            <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+          </div>
+        )}
+
         <div className="flex justify-between items-start mb-3">
           <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md font-body font-bold text-xs"
             style={{ background: inStock ? "rgba(0,176,111,0.15)" : "rgba(232,52,58,0.15)", color: inStock ? "#00D080" : "#FF6B6B" }}>
             <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: inStock ? "#00D080" : "#FF6B6B" }} />
             {inStock ? "В наличии" : "Нет в наличии"}
           </span>
-          <div className="text-2xl">{item.emoji}</div>
+          {!item.image && <div className="text-2xl">{item.emoji}</div>}
         </div>
 
         <h3 className="font-display font-bold text-base text-white mb-3 leading-tight">{item.name}</h3>
