@@ -514,7 +514,7 @@ export default function Admin() {
     if (data.success) {
       setCatalogMsg("✅ Товар добавлен");
       setShowNewItemForm(false);
-      setNewItem({ name: "", price_usd: 0, emoji: "📦", category: "lucky", game: "steal-a-brainrot", sort_order: 0, image: null });
+      setNewItem({ name: "", price_usd: 0, emoji: "📦", game: "steal-a-brainrot", sort_order: 0, image: null });
       fetchCatalog();
       setTimeout(() => setCatalogMsg(""), 2000);
     } else setCatalogMsg("❌ " + (data.error || "Ошибка"));
@@ -1139,10 +1139,11 @@ export default function Admin() {
                 </div>
 
                 <div>
-                  <label className="font-body text-white/40 text-xs mb-1 block">Порядок (число)</label>
+                  <label className="font-body text-white/40 text-xs mb-1 block">Позиция в списке</label>
                   <input type="number" value={newItem.sort_order || 0} onChange={e => setNewItem(p => ({ ...p, sort_order: parseInt(e.target.value) }))}
                     className="w-full px-3 py-2 rounded-xl font-body text-sm text-white outline-none"
                     style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+                  <p className="font-body text-white/25 text-xs mt-0.5">1 = первый в списке, 2 = второй и т.д.</p>
                 </div>
               </div>
               <div className="flex gap-3">
@@ -1246,12 +1247,31 @@ export default function Admin() {
                               <div className="font-body text-white/40 text-xs">
                                 <span style={{ color: "#4DA6FF" }}>{Math.round(item.price_usd * usdRate)} ₽</span>
                                 <span className="text-white/25"> · ${item.price_usd}</span>
-                                <span> · {item.stock} шт</span>
                               </div>
+                            </div>
+                            {/* Инлайн-редактор количества */}
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button onClick={() => updateCatalogItem({ ...item, stock: Math.max(0, item.stock - 1) })}
+                                className="w-7 h-7 rounded-lg font-bold text-sm text-white/60 hover:text-white transition-colors flex items-center justify-center"
+                                style={{ background: "rgba(255,255,255,0.07)" }}>−</button>
+                              <input
+                                type="number"
+                                value={item.stock}
+                                onChange={e => {
+                                  const val = parseInt(e.target.value) || 0;
+                                  setCatalogItems(prev => prev.map(i => i.id === item.id ? { ...i, stock: val } : i));
+                                }}
+                                onBlur={e => updateCatalogItem({ ...item, stock: parseInt(e.target.value) || 0 })}
+                                className="w-14 text-center px-1 py-1 rounded-lg font-body text-sm text-white outline-none"
+                                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+                              <button onClick={() => updateCatalogItem({ ...item, stock: item.stock + 1 })}
+                                className="w-7 h-7 rounded-lg font-bold text-sm text-white/60 hover:text-white transition-colors flex items-center justify-center"
+                                style={{ background: "rgba(255,255,255,0.07)" }}>+</button>
+                              <span className="font-body text-white/30 text-xs ml-0.5">шт</span>
                             </div>
                             <button onClick={() => setEditingItem({ ...item })}
                               className="px-3 py-1.5 rounded-lg font-body text-xs text-white/60 hover:text-white transition-colors"
-                              style={{ background: "rgba(255,255,255,0.05)" }}>✏️ Изменить</button>
+                              style={{ background: "rgba(255,255,255,0.05)" }}>✏️</button>
                             <button onClick={() => deleteCatalogItem(item.id)}
                               className="px-3 py-1.5 rounded-lg font-body text-xs text-red-400/60 hover:text-red-400 transition-colors"
                               style={{ background: "rgba(232,52,58,0.07)" }}>🗑️</button>
