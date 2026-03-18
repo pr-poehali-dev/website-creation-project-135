@@ -14,6 +14,7 @@ export type CatalogItem = {
   game: string;
   category?: string;
   image?: string | null;
+  available?: boolean;
 };
 
 export type Game = {

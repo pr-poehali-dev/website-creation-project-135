@@ -27,7 +27,7 @@ type Message = { id: string; sender: string; text: string; created_at: string };
 type Order = { order_id: string; item_name: string; amount_usd: number; quantity: number; network: string; status: string; created_at: string; };
 type StockRow = { item_id: number; available: number; total: number };
 type Account = { id: string; credentials: string; is_sold: boolean; sold_at: string | null; created_at: string };
-type CatalogItemAdmin = { id: number; name: string; price_usd: number; stock: number; emoji: string; game: string; sort_order: number; category?: string; image?: string | null };
+type CatalogItemAdmin = { id: number; name: string; price_usd: number; stock: number; emoji: string; game: string; sort_order: number; category?: string; image?: string | null; available: boolean };
 
 
 
@@ -222,6 +222,7 @@ export default function Admin() {
   const [priceMsg, setPriceMsg] = useState("");
 
   const [usdRate, setUsdRate] = useState(81.9103);
+  const [catalogGameFilter, setCatalogGameFilter] = useState<string | null>(null);
   const [inlineStockItemId, setInlineStockItemId] = useState<number | null>(null);
   const [inlineStockText, setInlineStockText] = useState("");
   const [inlineStockSaving, setInlineStockSaving] = useState(false);
@@ -601,6 +602,18 @@ export default function Admin() {
     });
     const data = await res.json();
     if (data.success) { fetchCatalog(); setCatalogMsg("✅ Удалено"); setTimeout(() => setCatalogMsg(""), 2000); }
+  }
+
+  async function setAvailable(params: { id?: number; game?: string; all?: boolean }, available: boolean) {
+    const body: Record<string, unknown> = { available };
+    if (params.id !== undefined) body.id = params.id;
+    else if (params.game) body.game = params.game;
+    await fetch(`${ORDERS_URL}?action=catalog_set_available`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+      body: JSON.stringify(body),
+    });
+    fetchCatalog();
   }
 
   function logout() {
@@ -1268,17 +1281,55 @@ export default function Admin() {
             </div>
           )}
 
+          {/* Фильтр по игре */}
+          {!catalogLoading && games.length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-2 items-center">
+              <button
+                onClick={() => setCatalogGameFilter(null)}
+                className="px-3 py-1.5 rounded-lg font-body text-xs transition-all"
+                style={{ background: catalogGameFilter === null ? "rgba(0,102,255,0.25)" : "rgba(255,255,255,0.05)", color: catalogGameFilter === null ? "#4DA6FF" : "rgba(255,255,255,0.4)", border: `1px solid ${catalogGameFilter === null ? "rgba(0,102,255,0.5)" : "rgba(255,255,255,0.1)"}` }}>
+                Все игры
+              </button>
+              {games.map(g => (
+                <button key={g.id} onClick={() => setCatalogGameFilter(g.id)}
+                  className="px-3 py-1.5 rounded-lg font-body text-xs transition-all"
+                  style={{ background: catalogGameFilter === g.id ? "rgba(0,102,255,0.25)" : "rgba(255,255,255,0.05)", color: catalogGameFilter === g.id ? "#4DA6FF" : "rgba(255,255,255,0.4)", border: `1px solid ${catalogGameFilter === g.id ? "rgba(0,102,255,0.5)" : "rgba(255,255,255,0.1)"}` }}>
+                  {g.name}
+                </button>
+              ))}
+              {catalogGameFilter && (
+                <div className="ml-auto flex gap-2">
+                  <button onClick={() => setAvailable({ game: catalogGameFilter }, false)}
+                    className="px-3 py-1.5 rounded-lg font-body text-xs font-bold transition-all"
+                    style={{ background: "rgba(232,52,58,0.12)", color: "#FF6B6B", border: "1px solid rgba(232,52,58,0.25)" }}>
+                    🚫 Снять всю игру
+                  </button>
+                  <button onClick={() => setAvailable({ game: catalogGameFilter }, true)}
+                    className="px-3 py-1.5 rounded-lg font-body text-xs font-bold transition-all"
+                    style={{ background: "rgba(0,208,128,0.12)", color: "#00D080", border: "1px solid rgba(0,208,128,0.25)" }}>
+                    ✅ Вернуть всю игру
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Список товаров по играм */}
           {catalogLoading ? (
             <p className="text-white/30 font-body text-sm">Загружаем...</p>
           ) : (
-            games.map(game => {
+            games.filter(game => catalogGameFilter === null || game.id === catalogGameFilter).map(game => {
               const items = catalogItems.filter(i => i.game === game.id);
               return (
                 <div key={game.id} className="mb-6">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="font-display font-bold text-white/70 text-sm">{game.name}</span>
                     <span className="font-body text-white/30 text-xs">({items.length} товаров)</span>
+                    {items.some(i => !i.available) && (
+                      <span className="font-body text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(232,52,58,0.1)", color: "#FF6B6B" }}>
+                        {items.filter(i => !i.available).length} снято
+                      </span>
+                    )}
                   </div>
                   {items.length === 0 && (
                     <p className="text-white/20 font-body text-xs ml-2">Нет товаров — нажми «+ Добавить товар»</p>
@@ -1286,7 +1337,7 @@ export default function Admin() {
                   <div className="flex flex-col gap-2">
                     {items.map(item => (
                       <div key={item.id} className="rounded-xl px-4 py-3 flex items-center gap-3"
-                        style={{ background: "#161F2C", border: "1px solid rgba(255,255,255,0.06)" }}>
+                        style={{ background: item.available ? "#161F2C" : "rgba(22,31,44,0.5)", border: `1px solid ${item.available ? "rgba(255,255,255,0.06)" : "rgba(232,52,58,0.15)"}`, opacity: item.available ? 1 : 0.75 }}>
                         {editingItem?.id === item.id ? (
                           <div className="flex-1 flex flex-col gap-2">
                             {/* Картинка при редактировании */}
@@ -1367,7 +1418,12 @@ export default function Admin() {
                                 <span className="text-xl w-12 text-center flex-shrink-0">{item.emoji}</span>
                               )}
                               <div className="flex-1 min-w-0">
-                                <div className="font-body text-white text-sm truncate">{item.name}</div>
+                                <div className="flex items-center gap-2">
+                                  <div className="font-body text-sm truncate" style={{ color: item.available ? "white" : "rgba(255,255,255,0.35)" }}>{item.name}</div>
+                                  {!item.available && (
+                                    <span className="text-xs px-1.5 py-0.5 rounded font-body flex-shrink-0" style={{ background: "rgba(232,52,58,0.15)", color: "#FF6B6B" }}>снято</span>
+                                  )}
+                                </div>
                                 <div className="font-body text-white/40 text-xs">
                                   <span style={{ color: "#4DA6FF" }}>{Math.round(item.price_usd * usdRate)} ₽</span>
                                   <span className="text-white/25"> · ${item.price_usd}</span>
@@ -1406,6 +1462,14 @@ export default function Admin() {
                                   color: "#00D080"
                                 }}>
                                 {inlineStockItemId === item.id ? "✕" : "📦 +лоты"}
+                              </button>
+                              <button
+                                onClick={() => setAvailable({ id: item.id }, !item.available)}
+                                className="px-3 py-1.5 rounded-lg font-body text-xs font-bold transition-all flex-shrink-0"
+                                style={item.available
+                                  ? { background: "rgba(232,52,58,0.08)", color: "#FF6B6B", border: "1px solid rgba(232,52,58,0.2)" }
+                                  : { background: "rgba(0,208,128,0.1)", color: "#00D080", border: "1px solid rgba(0,208,128,0.25)" }}>
+                                {item.available ? "🚫" : "✅"}
                               </button>
                               <button onClick={() => setEditingItem({ ...item })}
                                 className="px-3 py-1.5 rounded-lg font-body text-xs text-white/60 hover:text-white transition-colors flex-shrink-0"

@@ -629,10 +629,10 @@ def handler(event: dict, context) -> dict:
         conn = get_conn()
         cur = conn.cursor()
         schema = os.environ.get("MAIN_DB_SCHEMA", "public")
-        cur.execute(f"SELECT id, name, price_usd, stock, emoji, game, sort_order, image, category FROM {schema}.catalog_items ORDER BY sort_order, id")
+        cur.execute(f"SELECT id, name, price_usd, stock, emoji, game, sort_order, image, category, available FROM {schema}.catalog_items ORDER BY sort_order, id")
         rows = cur.fetchall()
         conn.close()
-        items = [{"id": r[0], "name": r[1], "price_usd": float(r[2]), "stock": r[3], "emoji": r[4], "game": r[5], "sort_order": r[6], "image": r[7], "category": r[8]} for r in rows]
+        items = [{"id": r[0], "name": r[1], "price_usd": float(r[2]), "stock": r[3], "emoji": r[4], "game": r[5], "sort_order": r[6], "image": r[7], "category": r[8], "available": r[9]} for r in rows]
         return ok({"items": items})
 
     # POST catalog_create — создать товар (admin)
@@ -672,7 +672,7 @@ def handler(event: dict, context) -> dict:
         schema = os.environ.get("MAIN_DB_SCHEMA", "public")
         fields = []
         values = []
-        for field in ["name", "price_usd", "stock", "emoji", "game", "sort_order", "image", "category"]:
+        for field in ["name", "price_usd", "stock", "emoji", "game", "sort_order", "image", "category", "available"]:
             if field in body:
                 fields.append(f"{field} = %s")
                 values.append(body[field])
@@ -681,6 +681,26 @@ def handler(event: dict, context) -> dict:
             return err("Нет полей для обновления")
         values.append(item_id)
         cur.execute(f"UPDATE {schema}.catalog_items SET {', '.join(fields)} WHERE id = %s", values)
+        conn.commit()
+        conn.close()
+        return ok({"success": True})
+
+    # POST catalog_set_available — снять/вернуть товары (admin)
+    if method == "POST" and action == "catalog_set_available":
+        if not is_admin:
+            return err("Нет доступа", 403)
+        available = body.get("available")
+        item_id = body.get("id")
+        game = body.get("game")
+        conn = get_conn()
+        cur = conn.cursor()
+        schema = os.environ.get("MAIN_DB_SCHEMA", "public")
+        if item_id:
+            cur.execute(f"UPDATE {schema}.catalog_items SET available = %s WHERE id = %s", (bool(available), item_id))
+        elif game:
+            cur.execute(f"UPDATE {schema}.catalog_items SET available = %s WHERE game = %s", (bool(available), game))
+        else:
+            cur.execute(f"UPDATE {schema}.catalog_items SET available = %s", (bool(available),))
         conn.commit()
         conn.close()
         return ok({"success": True})
