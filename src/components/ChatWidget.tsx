@@ -17,7 +17,7 @@ function getVisitorId() {
 
 type Message = { id: string; sender: string; text: string; created_at: string; isBot?: boolean };
 type PendingOrder = { order_id: string; item_name: string; amount_usd: number; created_at: string };
-type ServerOrder = { order_id: string; item_name: string; amount_usd: number; quantity: number; network: string; status: string; created_at: string };
+type ServerOrder = { order_id: string; item_name: string; amount_usd: number; quantity: number; network: string; status: string; created_at: string; paid_at?: string };
 
 const BOT_DELAY = 700;
 
@@ -133,7 +133,8 @@ export default function ChatWidget() {
       });
       const data = await res.json();
       if (data.orders) {
-        setServerOrders(data.orders.filter((o: ServerOrder) => o.status === "pending"));
+        // Показываем только оплаченные заказы
+        setServerOrders(data.orders.filter((o: ServerOrder) => o.status === "paid"));
       }
     } catch { /* ignore */ }
     setOrderLoading(false);
@@ -304,103 +305,66 @@ export default function ChatWidget() {
           {/* ===== ВКЛАДКА ЗАКАЗЫ ===== */}
           {activeTab === "orders" && (
             <div className="flex-1 overflow-y-auto px-4 py-4">
-              {orderLoading && serverOrders.length === 0 && !pendingOrder && (
-                <div className="flex justify-center py-8">
-                  <div className="w-6 h-6 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
-                </div>
-              )}
-
-              {!orderLoading && serverOrders.length === 0 && !pendingOrder && (
+              {/* Не авторизован */}
+              {!localStorage.getItem("cambeck_token") && (
                 <div className="flex flex-col items-center justify-center h-full gap-3 text-center py-10">
-                  <div className="text-4xl">📭</div>
-                  <p className="font-body text-white/50 text-sm">Активных заказов нет</p>
-                  <p className="font-body text-white/30 text-xs">Здесь появятся заказы, ожидающие оплаты</p>
-                  {!localStorage.getItem("cambeck_token") && (
-                    <Link to="/login" onClick={() => setOpen(false)}
-                      className="mt-2 px-4 py-2 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
-                      style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
-                      Войти в аккаунт
-                    </Link>
-                  )}
+                  <div className="text-4xl">🔐</div>
+                  <p className="font-body text-white/50 text-sm">История заказов доступна после входа</p>
+                  <p className="font-body text-white/30 text-xs">Войди чтобы видеть оплаченные покупки</p>
+                  <Link to="/login" onClick={() => setOpen(false)}
+                    className="mt-2 px-4 py-2 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
+                    style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
+                    Войти в аккаунт
+                  </Link>
                 </div>
               )}
 
-              <div className="flex flex-col gap-3">
-                {/* Заказы с сервера */}
-                {serverOrders.map(order => {
-                  const age = Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000);
-                  return (
-                    <div key={order.order_id} className="rounded-2xl p-4" style={{ background: "rgba(255,184,0,0.08)", border: "1px solid rgba(255,184,0,0.2)" }}>
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <div className="font-body font-bold text-white text-sm">{order.item_name} × {order.quantity}</div>
-                          <div className="font-display font-bold text-base mt-0.5" style={{ color: "#4DA6FF" }}>${order.amount_usd?.toFixed(2)}</div>
+              {/* Авторизован */}
+              {localStorage.getItem("cambeck_token") && (
+                <>
+                  {orderLoading && serverOrders.length === 0 && (
+                    <div className="flex justify-center py-8">
+                      <div className="w-6 h-6 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                    </div>
+                  )}
+
+                  {!orderLoading && serverOrders.length === 0 && (
+                    <div className="flex flex-col items-center justify-center h-full gap-3 text-center py-10">
+                      <div className="text-4xl">📭</div>
+                      <p className="font-body text-white/50 text-sm">Оплаченных заказов пока нет</p>
+                      <p className="font-body text-white/30 text-xs">Здесь появятся твои покупки после оплаты</p>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-3">
+                    {serverOrders.map(order => {
+                      const paidAt = order.paid_at ? new Date(order.paid_at).toLocaleDateString("ru") : "";
+                      return (
+                        <div key={order.order_id} className="rounded-2xl p-4" style={{ background: "rgba(0,176,111,0.07)", border: "1px solid rgba(0,176,111,0.2)" }}>
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <div className="font-body font-bold text-white text-sm">{order.item_name} × {order.quantity}</div>
+                              <div className="font-mono text-white/20 text-xs mt-0.5">#{order.order_id.slice(0,8).toUpperCase()}</div>
+                            </div>
+                            <span className="px-2 py-1 rounded-lg font-body font-bold text-xs flex-shrink-0"
+                              style={{ background: "rgba(0,176,111,0.15)", color: "#00D080" }}>
+                              ✅ Оплачен
+                            </span>
+                          </div>
+                          {paidAt && <div className="font-body text-white/30 text-xs mb-3">{paidAt}</div>}
+                          <button
+                            onClick={() => setActiveTab("chat")}
+                            className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
+                            style={{ background: "rgba(0,102,255,0.2)", border: "1px solid rgba(0,102,255,0.3)" }}>
+                            <Icon name="MessageCircle" size={14} />
+                            Написать продавцу
+                          </button>
                         </div>
-                        <span className="px-2 py-1 rounded-lg font-body font-bold text-xs flex-shrink-0"
-                          style={{ background: "rgba(255,184,0,0.15)", color: "#FFB800" }}>
-                          ⏳ Ожидает
-                        </span>
-                      </div>
-                      <div className="font-body text-white/30 text-xs mb-3">
-                        {order.network} • {age < 1 ? "только что" : `${age} мин назад`}
-                      </div>
-                      <div className="flex gap-2">
-                        <Link
-                          to={`/pay?order_id=${order.order_id}`}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
-                          style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}
-                          onClick={() => setOpen(false)}>
-                          <Icon name="CreditCard" size={14} />
-                          Оплатить
-                        </Link>
-                        <button
-                          onClick={() => setActiveTab("chat")}
-                          className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
-                          style={{ background: "rgba(0,102,255,0.2)", border: "1px solid rgba(0,102,255,0.3)" }}>
-                          <Icon name="MessageCircle" size={14} />
-                          Чат
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {/* Заказ из localStorage (если не авторизован) */}
-                {pendingOrder && !serverOrders.find(o => o.order_id === pendingOrder.order_id) && (
-                  <div className="rounded-2xl p-4" style={{ background: "rgba(255,184,0,0.08)", border: "1px solid rgba(255,184,0,0.2)" }}>
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <div className="font-body font-bold text-white text-sm">{pendingOrder.item_name}</div>
-                        <div className="font-display font-bold text-base mt-0.5" style={{ color: "#4DA6FF" }}>${pendingOrder.amount_usd?.toFixed(2)}</div>
-                      </div>
-                      <span className="px-2 py-1 rounded-lg font-body font-bold text-xs flex-shrink-0"
-                        style={{ background: "rgba(255,184,0,0.15)", color: "#FFB800" }}>⏳ Ожидает</span>
-                    </div>
-                    <div className="font-body text-white/30 text-xs mb-3">
-                      {orderAge < 1 ? "только что" : `${orderAge} мин назад`}
-                    </div>
-                    <Link
-                      to={`/pay?order_id=${pendingOrder.order_id}`}
-                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
-                      style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}
-                      onClick={() => setOpen(false)}>
-                      <Icon name="CreditCard" size={15} />
-                      Перейти к оплате
-                    </Link>
-                    <button
-                      onClick={() => { localStorage.removeItem("cambeck_pending_order"); setPendingOrder(null); }}
-                      className="w-full mt-2 py-2 font-body text-xs text-white/30 hover:text-white/60 transition-colors">
-                      Отменить заказ
-                    </button>
+                      );
+                    })}
                   </div>
-                )}
-
-                {(serverOrders.length > 0 || pendingOrder) && (
-                  <div className="rounded-xl p-3 text-center" style={{ background: "rgba(0,102,255,0.07)", border: "1px solid rgba(0,102,255,0.15)" }}>
-                    <p className="font-body text-white/40 text-xs">Перейди по ссылке и нажми «Я оплатил» после оплаты</p>
-                  </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
           )}
 

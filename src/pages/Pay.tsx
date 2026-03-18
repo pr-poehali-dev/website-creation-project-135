@@ -76,6 +76,22 @@ export default function Pay() {
     }
   }, [order?.order_id]);
 
+  // Автопроверка СБП-оплаты каждые 20 сек
+  useEffect(() => {
+    if (payMethod !== "sbp" || order?.status === "paid") return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${ORDERS_URL}?action=status&order_id=${orderId}`);
+        const data = await res.json();
+        if (data.status === "paid") {
+          localStorage.removeItem("cambeck_pending_order");
+          setOrder(prev => prev ? { ...prev, status: "paid", accounts: data.accounts || [] } : prev);
+        }
+      } catch { /* ignore */ }
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [payMethod, order?.status]);
+
   async function fetchRate(network: string) {
     const coinIds: Record<string, string> = { LTC: "litecoin", SOL: "solana" };
     const coinId = coinIds[network];
@@ -449,24 +465,27 @@ export default function Pay() {
             {/* Кнопки открытия банка */}
             <div className="px-5 pt-4 pb-2 flex flex-col gap-2">
               <p className="font-body text-white/40 text-xs mb-1">Быстрый переход в банк:</p>
-              {/* Сбербанк */}
-              <a
-                href={`sberbankonline://payment/transfer?phone=${sbpData.phone}&amount=${sbpData.amount_rub}&currency=RUB&comment=${encodeURIComponent(sbpData.comment)}`}
-                className="w-full py-3 rounded-xl font-body font-bold text-sm text-white flex items-center justify-center gap-2 transition-all hover:scale-[1.02]"
+              {/* Сбербанк — deeplink */}
+              <button
+                onClick={() => {
+                  window.location.href = `sberbankonline://payment/transfer?phone=${sbpData.phone}&amount=${sbpData.amount_rub}&currency=RUB&comment=${encodeURIComponent(sbpData.comment)}`;
+                }}
+                className="w-full py-3 rounded-xl font-body font-bold text-sm text-white flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95"
                 style={{ background: "linear-gradient(135deg, #1DB954, #0F7A35)" }}
               >
                 <span>🟢</span> Открыть Сбербанк
-              </a>
+              </button>
               {/* Любой банк через СБП НСПК */}
-              <a
-                href={`https://qr.nspk.ru/pay?type=02&bank=100000000111&sum=${sbpData.amount_rub * 100}&cur=RUB&name=${encodeURIComponent("CambeckSHOP")}&phone=${sbpData.phone}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-3 rounded-xl font-body font-bold text-sm text-white flex items-center justify-center gap-2 transition-all hover:scale-[1.02]"
+              <button
+                onClick={() => {
+                  const url = `https://qr.nspk.ru/pay?type=02&bank=100000000111&sum=${sbpData.amount_rub * 100}&cur=RUB&name=${encodeURIComponent("CambeckSHOP")}&phone=${sbpData.phone}`;
+                  window.open(url, "_blank");
+                }}
+                className="w-full py-3 rounded-xl font-body font-bold text-sm text-white flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95"
                 style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}
               >
                 <span>🏦</span> Открыть другой банк (СБП)
-              </a>
+              </button>
             </div>
 
             {/* Кнопка подтверждения */}
