@@ -13,6 +13,7 @@ CRYPTO_ADDRESSES = {
     "USDT_BEP": "0x34d1701Cd8EA27B95Cdcf7cb21B5bbC9aFc68A39",
     "USDT_TRC": "TAiCi6QMuZPRhdkYqW1R9nd9iWjWEc6JXW",
     "SOL":      "4VK9mX9VUmTHZSebHJdu5E4V2yoMA3SxJ9YUQwd5BGcd",
+    "SBP":      "sbp",
 }
 
 CRYPTO_LABELS = {
@@ -20,6 +21,7 @@ CRYPTO_LABELS = {
     "USDT_BEP": "USDT (BEP20 / BSC)",
     "USDT_TRC": "USDT (TRC20 / Tron)",
     "SOL":      "SOL (Solana)",
+    "SBP":      "СБП / Сбербанк",
 }
 
 def get_conn():

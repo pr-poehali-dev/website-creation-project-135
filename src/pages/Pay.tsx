@@ -353,7 +353,7 @@ export default function Pay() {
                 <span className="text-2xl">🟢</span>
               </div>
 
-              {/* Номер телефона */}
+              {/* Номер телефона (СБП) */}
               <div className="flex items-center justify-between p-3 rounded-xl"
                 style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
                 <div>
@@ -374,7 +374,25 @@ export default function Pay() {
                   <Icon name={copiedPhone ? "Check" : "Copy"} size={16} />
                 </button>
               </div>
-              {copiedPhone && <p className="text-green-400 text-xs mt-1 font-body">✓ Номер скопирован!</p>}
+              {copiedPhone && <p className="text-green-400 text-xs mt-1 font-body">✓ Скопировано!</p>}
+
+              {/* Номер карты */}
+              <div className="mt-3 flex items-center justify-between p-3 rounded-xl"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <div>
+                  <p className="font-body text-white/40 text-xs mb-0.5">Номер карты Сбербанк</p>
+                  <p className="font-display font-bold text-white text-xl tracking-wider">
+                    2202 2083 9529 2692
+                  </p>
+                </div>
+                <button
+                  onClick={() => navigator.clipboard.writeText("2202208395292692")}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-105 flex-shrink-0"
+                  style={{ background: "rgba(255,255,255,0.08)" }}
+                >
+                  <Icon name="Copy" size={16} />
+                </button>
+              </div>
 
               {/* Сумма */}
               <div className="mt-3 p-3 rounded-xl flex items-center justify-between"
@@ -403,7 +421,7 @@ export default function Pay() {
             {/* Инструкция */}
             <div className="px-5 py-4 border-b border-white/5">
               <p className="font-body text-white/40 text-xs leading-relaxed">
-                1. Переведи <b className="text-white">{sbpData.amount_rub.toLocaleString("ru")} ₽</b> по СБП на номер выше<br />
+                1. Переведи <b className="text-white">{sbpData.amount_rub.toLocaleString("ru")} ₽</b> по СБП на номер телефона или номер карты<br />
                 2. В комментарии укажи <b className="text-yellow-300">{sbpData.comment}</b><br />
                 3. Нажми «Я оплатил» — продавец проверит и подтвердит заказ
               </p>
