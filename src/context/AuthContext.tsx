@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 
 const AUTH_URL = "https://functions.poehali.dev/4d9f59a5-cbc5-418a-bb2f-849af25b8236";
 
-type User = { id: string; username: string; email: string; created_at?: string };
+type User = { id: string; username: string; email: string; name?: string; created_at?: string };
 
 type Order = {
   order_id: string; item_name: string; amount_usd: number;
@@ -27,7 +27,9 @@ type AuthCtx = {
 const AuthContext = createContext<AuthCtx | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    try { const u = localStorage.getItem("cambeck_user"); return u ? JSON.parse(u) : null; } catch { return null; }
+  });
   const [token, setToken] = useState<string | null>(() => localStorage.getItem("cambeck_token"));
   const [orders, setOrders] = useState<Order[]>([]);
   const [paidItems, setPaidItems] = useState<PaidItem[]>([]);
@@ -48,16 +50,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
       if (data.user) {
         setUser(data.user);
+        localStorage.setItem("cambeck_user", JSON.stringify(data.user));
         setOrders(data.orders || []);
         setPaidItems(data.paid_items || []);
       } else {
-        // Токен недействителен
+        // Токен недействителен — чистим
         localStorage.removeItem("cambeck_token");
+        localStorage.removeItem("cambeck_user");
         setToken(null);
         setUser(null);
       }
     } catch {
-      // ignore
+      // При ошибке сети оставляем кэшированного пользователя
     }
     setLoading(false);
   }
@@ -101,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }).catch(() => {});
     }
     localStorage.removeItem("cambeck_token");
+    localStorage.removeItem("cambeck_user");
     setToken(null);
     setUser(null);
     setOrders([]);
