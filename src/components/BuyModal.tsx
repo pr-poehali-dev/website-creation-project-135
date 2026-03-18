@@ -246,48 +246,11 @@ export default function BuyModal({ item, onClose }: Props) {
                 {payMethod === "card" && <span className="text-green-400 text-lg">✓</span>}
               </button>
 
-              {/* Крипта */}
-              <button
-                onClick={() => setPayMethod("crypto")}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all"
-                style={{
-                  background: payMethod === "crypto" ? "rgba(0,102,255,0.12)" : "rgba(255,255,255,0.04)",
-                  border: `1px solid ${payMethod === "crypto" ? "rgba(0,102,255,0.4)" : "rgba(255,255,255,0.07)"}`,
-                }}
-              >
-                <span className="text-xl">🔐</span>
-                <div className="flex-1">
-                  <div className="font-body font-bold text-sm text-white">Криптовалюта</div>
-                  <div className="font-body text-xs text-white/40">LTC · USDT · SOL</div>
-                </div>
-                {payMethod === "crypto" && <span style={{ color: "#4DA6FF" }} className="text-lg">✓</span>}
-              </button>
+
             </div>
           </div>
 
-          {/* Выбор сети (только для крипты) */}
-          {payMethod === "crypto" && (
-            <div>
-              <p className="font-body text-white/50 text-xs mb-2">Выберите сеть</p>
-              <div className="grid grid-cols-2 gap-2">
-                {NETWORKS.map(n => (
-                  <button
-                    key={n.id}
-                    onClick={() => setNetwork(n.id)}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl font-body text-sm text-left transition-all"
-                    style={{
-                      background: network === n.id ? `${n.color}22` : "rgba(255,255,255,0.04)",
-                      border: `1px solid ${network === n.id ? n.color + "66" : "rgba(255,255,255,0.07)"}`,
-                      color: network === n.id ? n.color : "rgba(255,255,255,0.6)",
-                    }}
-                  >
-                    <span className="font-bold text-base w-5 text-center">{n.icon}</span>
-                    <span className="text-xs leading-tight">{n.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+
 
           {error && (
             <p className="font-body text-red-400 text-sm text-center">{error}</p>
@@ -337,13 +300,11 @@ export default function BuyModal({ item, onClose }: Props) {
 
           {/* Кнопка оплаты */}
           <button
-            onClick={payMethod === "card" ? payBySbp : payByCrypto}
-            disabled={loading || !payMethod || (payMethod === "crypto" && !network) || !agreed}
+            onClick={payBySbp}
+            disabled={loading || !payMethod || !agreed}
             className="w-full py-3.5 rounded-xl font-body font-bold text-white text-base disabled:opacity-40"
             style={{
-              background: payMethod === "card"
-                ? "linear-gradient(135deg, #21BF73, #158F55)"
-                : "linear-gradient(135deg, #0066FF, #0044BB)",
+              background: "linear-gradient(135deg, #21BF73, #158F55)",
               touchAction: "manipulation",
               border: "none",
               cursor: "pointer",
@@ -352,9 +313,9 @@ export default function BuyModal({ item, onClose }: Props) {
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                {payMethod === "card" ? "Создаём заказ..." : "Создаём заказ..."}
+                Создаём заказ...
               </span>
-            ) : payMethod === "card" ? "🟢 Оплатить по СБП / картой" : "🔐 Перейти к оплате →"}
+            ) : "🟢 Оплатить по СБП / картой"}
           </button>
         </div>
       </div>
