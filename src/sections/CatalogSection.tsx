@@ -135,19 +135,20 @@ export default function CatalogSection({ dbCatalog, dbGames, dbPrices, dbStock, 
           <div className="pixel-divider max-w-xs mx-auto mt-4" />
         </div>
 
-        {/* Поиск */}
-        <div className="relative max-w-xl mx-auto mb-10">
+        {/* Поиск — всегда виден над каталогом */}
+        <div className="relative max-w-xl mx-auto mb-10" style={{ zIndex: 10 }}>
           <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">
             <Icon name="Search" size={18} />
           </div>
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Поиск по каталогу..."
+            placeholder="Поиск по всему каталогу..."
             className="w-full pl-11 pr-10 py-3.5 rounded-2xl font-body text-sm text-white outline-none transition-all"
             style={{
               background: "rgba(22,31,44,0.9)",
-              border: `1px solid ${searchQuery.length >= 2 ? "rgba(0,102,255,0.4)" : "rgba(255,255,255,0.1)"}`,
+              border: `1px solid ${searchQuery.length >= 2 ? "rgba(0,102,255,0.5)" : "rgba(255,255,255,0.1)"}`,
+              boxShadow: searchQuery.length >= 2 ? "0 0 0 3px rgba(0,102,255,0.1)" : "none",
             }}
           />
           {search && (
