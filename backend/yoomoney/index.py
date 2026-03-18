@@ -1,26 +1,28 @@
 """
-ЮMoney — генерация ссылки на оплату (форма) и приём webhook-уведомлений.
-Поддерживает оплату с банковской карты и по СБП через кошелёк ЮMoney.
+СБП / Сбер — приём платежей по номеру телефона.
+Покупатель переводит сумму в рублях, админ подтверждает вручную.
 """
-import hashlib
 import json
 import os
-from urllib.parse import urlencode
-from datetime import datetime
+import psycopg2
 
 CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, X-Admin-Token",
     "Content-Type": "application/json",
 }
+
+SBP_PHONE = "79181440716"
+SBP_BANK  = "Сбербанк"
+ADMIN_TOKEN = "admin_Cambeck_token_cambeck"
 
 
 def get_conn():
     return psycopg2.connect(os.environ["DATABASE_URL"])
 
 
-def schema():
+def S():
     return os.environ.get("MAIN_DB_SCHEMA", "public")
 
 
@@ -32,50 +34,31 @@ def err(msg, code=400):
     return {"statusCode": code, "headers": CORS_HEADERS, "body": json.dumps({"error": msg})}
 
 
-def verify_notification(params: dict, secret: str) -> bool:
-    """Проверяем подпись ЮMoney-уведомления через SHA-1"""
-    keys = [
-        "notification_type", "operation_id", "amount",
-        "currency", "datetime", "sender", "codepro",
-        secret, "label"
-    ]
-    values = [
-        params.get("notification_type", ""),
-        params.get("operation_id", ""),
-        params.get("amount", ""),
-        params.get("currency", ""),
-        params.get("datetime", ""),
-        params.get("sender", ""),
-        params.get("codepro", ""),
-        secret,
-        params.get("label", ""),
-    ]
-    check_str = "&".join(values)
-    expected = hashlib.sha1(check_str.encode("utf-8")).hexdigest()
-    return expected == params.get("sha1_hash", "")
-
-
 def handler(event: dict, context) -> dict:
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS_HEADERS, "body": ""}
 
     method = event.get("httpMethod", "GET")
-    qs = event.get("queryStringParameters") or {}
+    qs     = event.get("queryStringParameters") or {}
     action = qs.get("action", "")
+    hdrs   = event.get("headers") or {}
 
-    # ── POST /yoomoney?action=create — создать ссылку на оплату ──────────────
+    # ── POST ?action=create — зафиксировать заказ, вернуть реквизиты ─────────
     if method == "POST" and action == "create":
-        body = json.loads(event.get("body") or "{}")
-        order_id = body.get("order_id", "").strip()
+        raw = event.get("body") or "{}"
+        while isinstance(raw, str):
+            raw = json.loads(raw)
+        body = raw or {}
+        order_id = (body.get("order_id") or "").strip()
         if not order_id:
             return err("order_id required")
 
         conn = get_conn()
-        cur = conn.cursor()
-        S = schema()
+        cur  = conn.cursor()
 
         cur.execute(
-            f"SELECT id, item_name, price_usd, quantity, status FROM {S}.orders WHERE id = %s",
+            f"SELECT id, item_name, price_usd, quantity, status"
+            f" FROM {S()}.orders WHERE id = %s",
             (order_id,),
         )
         row = cur.fetchone()
@@ -84,142 +67,136 @@ def handler(event: dict, context) -> dict:
             return err("Заказ не найден", 404)
 
         _, item_name, price_usd, qty, status = row
-        if status not in ("pending", "yoomoney_pending"):
+        if status not in ("pending", "sbp_pending"):
             conn.close()
             return err("Заказ уже оплачен или недействителен")
 
-        # Конвертируем USD → RUB (фиксированный курс из настроек)
-        cur.execute(f"SELECT value FROM {S}.settings WHERE key = 'usd_rate' LIMIT 1")
+        # Курс USD → RUB
+        cur.execute(f"SELECT value FROM {S()}.settings WHERE key = 'usd_rate' LIMIT 1")
         rate_row = cur.fetchone()
-        usd_rate = float(rate_row[0]) if rate_row else 90.0
+        usd_rate   = float(rate_row[0]) if rate_row else 90.0
         amount_rub = round(float(price_usd) * usd_rate, 2)
 
-        wallet = os.environ.get("YOOMONEY_WALLET", "")
-        if not wallet:
-            conn.close()
-            return err("YOOMONEY_WALLET не настроен", 500)
-
-        # Обновляем статус заказа
         cur.execute(
-            f"UPDATE {S}.orders SET status = 'yoomoney_pending', usd_rate = %s WHERE id = %s",
+            f"UPDATE {S()}.orders SET status = 'sbp_pending', usd_rate = %s WHERE id = %s",
             (usd_rate, order_id),
         )
         conn.commit()
         conn.close()
 
-        # Формируем параметры формы ЮMoney
-        params = {
-            "receiver": wallet,
-            "quickpay-form": "shop",
-            "targets": f"Оплата заказа {order_id[:8].upper()} — {item_name}",
-            "paymentType": "AC",          # AC = банковская карта; SB = СБП
-            "sum": amount_rub,
-            "label": order_id,            # order_id как метка для webhook
-            "successURL": f"{body.get('return_url', '')}",
-            "formcomment": "CambeckSHOP",
-            "short-dest": item_name[:50],
-        }
-
-        payment_url = "https://yoomoney.ru/quickpay/confirm?" + urlencode(params)
-
         return ok({
-            "payment_url": payment_url,
+            "phone":      SBP_PHONE,
+            "bank":       SBP_BANK,
             "amount_rub": amount_rub,
-            "usd_rate": usd_rate,
+            "usd_rate":   usd_rate,
+            "comment":    f"Заказ {order_id[:8].upper()}",
         })
 
-    # ── POST /yoomoney?action=webhook — уведомление от ЮMoney ────────────────
-    if method == "POST" and action == "webhook":
-        raw_body = event.get("body") or ""
+    # ── POST ?action=confirm — админ подтверждает СБП-оплату ─────────────────
+    if method == "POST" and action == "confirm":
+        if hdrs.get("X-Admin-Token") != ADMIN_TOKEN:
+            return err("Нет доступа", 403)
 
-        # ЮMoney шлёт application/x-www-form-urlencoded
-        from urllib.parse import parse_qs
-        parsed = parse_qs(raw_body)
-        params = {k: v[0] for k, v in parsed.items()}
-
-        secret = os.environ.get("YOOMONEY_SECRET", "")
-        if not verify_notification(params, secret):
-            return {"statusCode": 400, "headers": CORS_HEADERS, "body": "bad signature"}
-
-        if params.get("codepro", "false") == "true":
-            return {"statusCode": 200, "headers": CORS_HEADERS, "body": "codepro not supported"}
-
-        label = params.get("label", "")
-        amount = params.get("amount", "0")
-        notification_type = params.get("notification_type", "")
-
-        if notification_type not in ("p2p-incoming", "card-incoming"):
-            return {"statusCode": 200, "headers": CORS_HEADERS, "body": "ignored"}
-
-        if not label:
-            return {"statusCode": 200, "headers": CORS_HEADERS, "body": "no label"}
-
-        conn = get_conn()
-        cur = conn.cursor()
-        S = schema()
-
-        cur.execute(
-            f"SELECT id, item_id, item_name, price_usd, quantity, status, user_id, game FROM {S}.orders WHERE id = %s",
-            (label,),
-        )
-        row = cur.fetchone()
-        if not row:
-            conn.close()
-            return {"statusCode": 200, "headers": CORS_HEADERS, "body": "order not found"}
-
-        order_id, item_id, item_name, price_usd, qty, status, user_id, game = row
-
-        if status == "paid":
-            conn.close()
-            return {"statusCode": 200, "headers": CORS_HEADERS, "body": "already paid"}
-
-        # Помечаем заказ оплаченным
-        cur.execute(
-            f"""UPDATE {S}.orders
-                SET status = 'paid', paid_at = NOW(),
-                    tx_hash = %s
-                WHERE id = %s""",
-            (params.get("operation_id", ""), str(order_id)),
-        )
-
-        # Выдаём аккаунты из стока (для Brainrot)
-        cur.execute(
-            f"SELECT id FROM {S}.stock_accounts WHERE item_id = %s AND is_sold = FALSE LIMIT %s FOR UPDATE",
-            (item_id, qty),
-        )
-        acc_rows = cur.fetchall()
-        if acc_rows:
-            ids = [str(r[0]) for r in acc_rows]
-            cur.execute(
-                f"UPDATE {S}.stock_accounts SET is_sold = TRUE, order_id = %s, sold_at = NOW() WHERE id = ANY(%s::uuid[])",
-                (str(order_id), ids),
-            )
-
-        conn.commit()
-        conn.close()
-
-        return {"statusCode": 200, "headers": CORS_HEADERS, "body": "ok"}
-
-    # ── GET /yoomoney?action=status&order_id=xxx ─────────────────────────────
-    if method == "GET" and action == "status":
-        order_id = qs.get("order_id", "")
+        raw = event.get("body") or "{}"
+        while isinstance(raw, str):
+            raw = json.loads(raw)
+        body = raw or {}
+        order_id = (body.get("order_id") or "").strip()
         if not order_id:
             return err("order_id required")
 
         conn = get_conn()
-        cur = conn.cursor()
-        S = schema()
+        cur  = conn.cursor()
 
         cur.execute(
-            f"SELECT status, paid_at FROM {S}.orders WHERE id = %s",
+            f"SELECT id, item_id, item_name, quantity, status, game"
+            f" FROM {S()}.orders WHERE id = %s",
             (order_id,),
         )
         row = cur.fetchone()
-        conn.close()
-
         if not row:
+            conn.close()
             return err("Заказ не найден", 404)
 
-        return ok({"status": row[0], "paid_at": row[1]})
+        _, item_id, item_name, qty, status, game = row
+        if status == "paid":
+            conn.close()
+            return ok({"success": True, "already_paid": True})
+
+        # Помечаем оплаченным
+        cur.execute(
+            f"UPDATE {S()}.orders SET status = 'paid', paid_at = NOW() WHERE id = %s",
+            (order_id,),
+        )
+
+        # Выдаём аккаунты для Steal a Brainrot
+        if game == "steal-a-brainrot":
+            cur.execute(
+                f"SELECT id FROM {S()}.stock_accounts"
+                f" WHERE item_id = %s AND is_sold = FALSE LIMIT %s FOR UPDATE",
+                (item_id, qty),
+            )
+            ids = [str(r[0]) for r in cur.fetchall()]
+            if ids:
+                cur.execute(
+                    f"UPDATE {S()}.stock_accounts"
+                    f" SET is_sold = TRUE, order_id = %s, sold_at = NOW()"
+                    f" WHERE id = ANY(%s::uuid[])",
+                    (order_id, ids),
+                )
+        else:
+            # Для других игр — создаём чат поддержки
+            cur.execute(
+                f"SELECT id FROM {S()}.chats"
+                f" WHERE status = 'open' ORDER BY created_at DESC LIMIT 1"
+            )
+            chat_row = cur.fetchone()
+            if not chat_row:
+                cur.execute(
+                    f"INSERT INTO {S()}.chats (visitor_id, visitor_name, status)"
+                    f" VALUES (%s, 'Покупатель', 'open') RETURNING id",
+                    (order_id,),
+                )
+                chat_id = str(cur.fetchone()[0])
+            else:
+                chat_id = str(chat_row[0])
+
+            msg = f"✅ Оплата СБП получена! Товар: {item_name}\nПродавец передаст товар через игру."
+            cur.execute(
+                f"INSERT INTO {S()}.messages (chat_id, sender, text)"
+                f" VALUES (%s, 'admin', %s)",
+                (chat_id, msg),
+            )
+            cur.execute(
+                f"UPDATE {S()}.orders SET chat_id = %s WHERE id = %s",
+                (chat_id, order_id),
+            )
+
+        conn.commit()
+        conn.close()
+        return ok({"success": True})
+
+    # ── POST ?action=reject — админ отклоняет СБП-заказ ──────────────────────
+    if method == "POST" and action == "reject":
+        if hdrs.get("X-Admin-Token") != ADMIN_TOKEN:
+            return err("Нет доступа", 403)
+
+        raw = event.get("body") or "{}"
+        while isinstance(raw, str):
+            raw = json.loads(raw)
+        body = raw or {}
+        order_id = (body.get("order_id") or "").strip()
+        if not order_id:
+            return err("order_id required")
+
+        conn = get_conn()
+        cur  = conn.cursor()
+        cur.execute(
+            f"UPDATE {S()}.orders SET status = 'rejected' WHERE id = %s AND status = 'sbp_pending'",
+            (order_id,),
+        )
+        conn.commit()
+        conn.close()
+        return ok({"success": True})
 
     return err("Unknown action")

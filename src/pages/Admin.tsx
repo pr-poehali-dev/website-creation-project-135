@@ -3,6 +3,7 @@ import Icon from "@/components/ui/icon";
 
 const CHAT_URL = "https://functions.poehali.dev/5dc1e3a3-dd70-49b6-a971-dd798391a238";
 const ORDERS_URL = "https://functions.poehali.dev/f852d147-eae1-4265-a94d-63d014c42231";
+const SBP_URL = "https://functions.poehali.dev/42feca66-55a3-499c-b7b5-ea34fc0494ec";
 
 const CATALOG_ITEMS = [
   { id: 1,  name: "Secret Lucky Block x10" },
@@ -298,6 +299,25 @@ export default function Admin() {
     if (data.success) { setConfirmingId(null); setTxHash(""); fetchOrders(); }
   }
 
+  async function confirmSbp(orderId: string) {
+    const res = await fetch(`${SBP_URL}?action=confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+      body: JSON.stringify({ order_id: orderId }),
+    });
+    const data = await res.json();
+    if (data.success) { setConfirmingId(null); fetchOrders(); }
+  }
+
+  async function rejectSbp(orderId: string) {
+    await fetch(`${SBP_URL}?action=reject`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+      body: JSON.stringify({ order_id: orderId }),
+    });
+    fetchOrders();
+  }
+
   async function fetchStockSummary() {
     const res = await fetch(`${ORDERS_URL}?action=stock`, { headers: { "X-Admin-Token": token } });
     const data = await res.json();
@@ -582,9 +602,14 @@ export default function Admin() {
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <span className="px-2 py-1 rounded-md font-body font-bold text-xs"
-                      style={{ background: o.status === "paid" ? "rgba(0,176,111,0.15)" : "rgba(255,184,0,0.12)", color: o.status === "paid" ? "#00D080" : "#FFB800" }}>
-                      {o.status === "paid" ? "✅ Оплачен" : "⏳ Ожидает"}
+                      style={{
+                        background: o.status === "paid" ? "rgba(0,176,111,0.15)" : o.status === "sbp_pending" ? "rgba(33,191,115,0.15)" : "rgba(255,184,0,0.12)",
+                        color: o.status === "paid" ? "#00D080" : o.status === "sbp_pending" ? "#21BF73" : "#FFB800"
+                      }}>
+                      {o.status === "paid" ? "✅ Оплачен" : o.status === "sbp_pending" ? "💳 СБП — ждёт" : "⏳ Ожидает"}
                     </span>
+
+                    {/* Крипта — ручное подтверждение */}
                     {o.status === "pending" && (
                       confirmingId === o.order_id ? (
                         <div className="flex flex-col gap-1">
@@ -605,6 +630,34 @@ export default function Admin() {
                           className="px-3 py-1.5 rounded-lg font-body font-bold text-xs text-white"
                           style={{ background: "linear-gradient(135deg, #00B06F, #007A4D)" }}>
                           ✅ Подтвердить
+                        </button>
+                      )
+                    )}
+
+                    {/* СБП — подтвердить или отклонить */}
+                    {o.status === "sbp_pending" && (
+                      confirmingId === o.order_id ? (
+                        <div className="flex flex-col gap-1">
+                          <p className="font-body text-white/50 text-xs text-right">Перевод получен?</p>
+                          <div className="flex gap-1">
+                            <button onClick={() => confirmSbp(o.order_id)}
+                              className="flex-1 py-1.5 rounded-lg font-body font-bold text-xs text-white"
+                              style={{ background: "linear-gradient(135deg, #21BF73, #158F55)" }}>✅ Да, подтвердить</button>
+                            <button onClick={() => setConfirmingId(null)}
+                              className="px-2 py-1 rounded-lg font-body text-xs text-white/40"
+                              style={{ background: "rgba(255,255,255,0.05)" }}>✕</button>
+                          </div>
+                          <button onClick={() => rejectSbp(o.order_id)}
+                            className="w-full py-1 rounded-lg font-body text-xs text-red-400/70 hover:text-red-400 transition-colors"
+                            style={{ background: "rgba(232,52,58,0.08)" }}>
+                            ❌ Отклонить
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setConfirmingId(o.order_id)}
+                          className="px-3 py-1.5 rounded-lg font-body font-bold text-xs text-white"
+                          style={{ background: "linear-gradient(135deg, #21BF73, #158F55)" }}>
+                          💳 Проверить СБП
                         </button>
                       )
                     )}

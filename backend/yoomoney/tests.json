@@ -15,9 +15,10 @@
       "bodyMatcher": "partial"
     },
     {
-      "name": "Status without order_id",
-      "method": "GET",
-      "path": "/?action=status",
+      "name": "Create without order_id",
+      "method": "POST",
+      "path": "/?action=create",
+      "body": "{}",
       "expectedStatus": 400,
       "expectedBody": {"error": "order_id required"},
       "bodyMatcher": "partial"

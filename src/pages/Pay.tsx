@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 
 const ORDERS_URL = "https://functions.poehali.dev/f852d147-eae1-4265-a94d-63d014c42231";
-const YOOMONEY_URL = "https://functions.poehali.dev/yoomoney"; // заменится после деплоя
+const SBP_URL = "https://functions.poehali.dev/42feca66-55a3-499c-b7b5-ea34fc0494ec";
 
 const NETWORK_ICONS: Record<string, string> = {
   LTC: "Ł",
@@ -50,9 +50,10 @@ export default function Pay() {
   const [secondsLeft, setSecondsLeft] = useState(1800);
   const [expired, setExpired] = useState(false);
   const [cryptoRate, setCryptoRate] = useState<number | null>(null);
-  const [payMethod, setPayMethod] = useState<"crypto" | "yoomoney" | null>(null);
-  const [ymLoading, setYmLoading] = useState(false);
-  const [ymAmountRub, setYmAmountRub] = useState<number | null>(null);
+  const [payMethod, setPayMethod] = useState<"crypto" | "sbp" | null>(null);
+  const [sbpLoading, setSbpLoading] = useState(false);
+  const [sbpData, setSbpData] = useState<{ phone: string; bank: string; amount_rub: number; comment: string } | null>(null);
+  const [copiedPhone, setCopiedPhone] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -120,7 +121,7 @@ export default function Pay() {
       if (!data.error) {
         setOrder(data);
         if (data.status === "expired") setExpired(true);
-        if (data.status === "yoomoney_pending") setPayMethod("yoomoney");
+        if (data.status === "sbp_pending") setPayMethod("sbp");
       }
     } catch {
       // ignore
@@ -153,26 +154,24 @@ export default function Pay() {
     setChecking(false);
   }
 
-  async function openYoomoney() {
+  async function openSbp() {
     if (!order) return;
-    setYmLoading(true);
+    setSbpLoading(true);
     try {
-      const returnUrl = window.location.href;
-      const res = await fetch(`${YOOMONEY_URL}?action=create`, {
+      const res = await fetch(`${SBP_URL}?action=create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order_id: order.order_id, return_url: returnUrl }),
+        body: JSON.stringify({ order_id: order.order_id }),
       });
       const data = await res.json();
-      if (data.payment_url) {
-        setYmAmountRub(data.amount_rub);
-        setPayMethod("yoomoney");
-        window.open(data.payment_url, "_blank");
+      if (data.phone) {
+        setSbpData(data);
+        setPayMethod("sbp");
       }
     } catch {
       // ignore
     }
-    setYmLoading(false);
+    setSbpLoading(false);
   }
 
   function copyAddress() {
@@ -295,8 +294,8 @@ export default function Pay() {
     </div>
   );
 
-  // ── Экран ожидания ЮMoney ─────────────────────────────────────────────────
-  if (payMethod === "yoomoney") {
+  // ── Экран СБП ─────────────────────────────────────────────────────────────
+  if (payMethod === "sbp" && sbpData) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-10" style={{ background: "#0F1923" }}>
         <div className="w-full max-w-md">
@@ -305,7 +304,7 @@ export default function Pay() {
               <Icon name="ArrowLeft" size={20} />
             </button>
             <div>
-              <h1 className="font-display font-bold text-white text-xl">Оплата ЮMoney</h1>
+              <h1 className="font-display font-bold text-white text-xl">Оплата СБП / Сбер</h1>
               <p className="font-body text-white/40 text-xs">#{order.order_id.slice(0, 8).toUpperCase()}</p>
             </div>
           </div>
@@ -322,12 +321,10 @@ export default function Pay() {
                 </div>
                 <div className="text-right">
                   <p className="font-body text-white/50 text-xs mb-1">К оплате</p>
-                  <p className="font-display font-bold text-2xl" style={{ color: "#4DA6FF" }}>
-                    ${order.amount_usd.toFixed(2)}
+                  <p className="font-display font-bold text-3xl" style={{ color: "#21BF73" }}>
+                    {sbpData.amount_rub.toLocaleString("ru")} ₽
                   </p>
-                  {ymAmountRub && (
-                    <p className="font-body text-white/30 text-xs">≈ {ymAmountRub.toLocaleString("ru")} ₽</p>
-                  )}
+                  <p className="font-body text-white/30 text-xs">${order.amount_usd.toFixed(2)}</p>
                 </div>
               </div>
             </div>
@@ -342,70 +339,95 @@ export default function Pay() {
               </span>
             </div>
 
-            {/* Инструкция */}
+            {/* Реквизиты */}
             <div className="px-5 py-5 border-b border-white/5">
-              <div className="flex items-start gap-3 mb-4">
-                <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-xs"
-                  style={{ background: "rgba(108,92,231,0.2)", color: "#6C5CE7" }}>1</div>
+              <p className="font-body text-white/40 text-xs mb-3 uppercase tracking-wider">Реквизиты для перевода</p>
+
+              {/* Банк */}
+              <div className="flex items-center justify-between mb-3 p-3 rounded-xl"
+                style={{ background: "rgba(33,191,115,0.06)", border: "1px solid rgba(33,191,115,0.15)" }}>
                 <div>
-                  <p className="font-body text-white text-sm font-bold">Откройте страницу оплаты</p>
-                  <p className="font-body text-white/40 text-xs mt-0.5">Нажмите кнопку ниже — откроется ЮMoney</p>
+                  <p className="font-body text-white/40 text-xs">Банк</p>
+                  <p className="font-body font-bold text-white text-base">{sbpData.bank}</p>
                 </div>
+                <span className="text-2xl">🟢</span>
               </div>
-              <div className="flex items-start gap-3 mb-4">
-                <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-xs"
-                  style={{ background: "rgba(108,92,231,0.2)", color: "#6C5CE7" }}>2</div>
+
+              {/* Номер телефона */}
+              <div className="flex items-center justify-between p-3 rounded-xl"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
                 <div>
-                  <p className="font-body text-white text-sm font-bold">Оплатите картой или по СБП</p>
-                  <p className="font-body text-white/40 text-xs mt-0.5">Любой российский банк, без комиссии</p>
+                  <p className="font-body text-white/40 text-xs mb-0.5">Номер телефона (СБП)</p>
+                  <p className="font-display font-bold text-white text-xl tracking-wider">
+                    +7 918 144-07-16
+                  </p>
                 </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(sbpData.phone);
+                    setCopiedPhone(true);
+                    setTimeout(() => setCopiedPhone(false), 2000);
+                  }}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-105 flex-shrink-0"
+                  style={{ background: copiedPhone ? "rgba(33,191,115,0.2)" : "rgba(255,255,255,0.08)" }}
+                >
+                  <Icon name={copiedPhone ? "Check" : "Copy"} size={16} />
+                </button>
               </div>
-              <div className="flex items-start gap-3">
-                <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-xs"
-                  style={{ background: "rgba(108,92,231,0.2)", color: "#6C5CE7" }}>3</div>
+              {copiedPhone && <p className="text-green-400 text-xs mt-1 font-body">✓ Номер скопирован!</p>}
+
+              {/* Сумма */}
+              <div className="mt-3 p-3 rounded-xl flex items-center justify-between"
+                style={{ background: "rgba(33,191,115,0.06)", border: "1px solid rgba(33,191,115,0.15)" }}>
                 <div>
-                  <p className="font-body text-white text-sm font-bold">Вернитесь и нажмите «Я оплатил»</p>
-                  <p className="font-body text-white/40 text-xs mt-0.5">Система автоматически проверит платёж</p>
+                  <p className="font-body text-white/40 text-xs mb-0.5">Сумма перевода</p>
+                  <p className="font-display font-bold text-white text-xl">{sbpData.amount_rub.toLocaleString("ru")} ₽</p>
                 </div>
+                <button
+                  onClick={() => navigator.clipboard.writeText(String(sbpData.amount_rub))}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-105"
+                  style={{ background: "rgba(255,255,255,0.08)" }}
+                >
+                  <Icon name="Copy" size={16} />
+                </button>
+              </div>
+
+              {/* Комментарий */}
+              <div className="mt-3 p-3 rounded-xl"
+                style={{ background: "rgba(255,184,0,0.05)", border: "1px solid rgba(255,184,0,0.15)" }}>
+                <p className="font-body text-white/40 text-xs mb-0.5">Комментарий к переводу</p>
+                <p className="font-body font-bold text-yellow-300 text-sm">{sbpData.comment}</p>
               </div>
             </div>
 
-            {/* Кнопки */}
-            <div className="px-5 py-4 flex flex-col gap-3">
-              <button
-                onClick={openYoomoney}
-                disabled={ymLoading}
-                className="w-full py-3.5 rounded-xl font-body font-bold text-white text-base transition-all hover:scale-[1.02] disabled:opacity-60 flex items-center justify-center gap-2"
-                style={{ background: "linear-gradient(135deg, #6C5CE7, #4A3AB0)" }}
-              >
-                {ymLoading ? (
-                  <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                ) : (
-                  <>
-                    <span>💳</span>
-                    <span>Открыть страницу оплаты</span>
-                  </>
-                )}
-              </button>
+            {/* Инструкция */}
+            <div className="px-5 py-4 border-b border-white/5">
+              <p className="font-body text-white/40 text-xs leading-relaxed">
+                1. Переведи <b className="text-white">{sbpData.amount_rub.toLocaleString("ru")} ₽</b> по СБП на номер выше<br />
+                2. В комментарии укажи <b className="text-yellow-300">{sbpData.comment}</b><br />
+                3. Нажми «Я оплатил» — продавец проверит и подтвердит заказ
+              </p>
+            </div>
 
+            {/* Кнопка */}
+            <div className="px-5 py-4">
               <button
                 onClick={checkPayment}
                 disabled={checking}
                 className="w-full py-3.5 rounded-xl font-body font-bold text-white text-base transition-all hover:scale-[1.02] disabled:opacity-60 flex items-center justify-center gap-2"
-                style={{ background: "linear-gradient(135deg, #00B06F, #007A4D)" }}
+                style={{ background: "linear-gradient(135deg, #21BF73, #158F55)" }}
               >
                 {checking ? (
                   <>
                     <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                    <span>Проверяем оплату...</span>
+                    <span>Проверяем...</span>
                   </>
-                ) : "✅ Я оплатил — проверить"}
+                ) : "✅ Я оплатил — жду подтверждения"}
               </button>
+              <p className="font-body text-white/20 text-xs text-center mt-3">
+                Продавец подтвердит перевод в течение нескольких минут
+              </p>
             </div>
-
-            <p className="font-body text-white/20 text-xs text-center pb-4 px-5">
-              Проверка происходит автоматически каждые 15 сек
-            </p>
           </div>
 
           <p className="text-center font-body text-white/20 text-xs mt-4">
@@ -449,30 +471,30 @@ export default function Pay() {
           </div>
 
           <div className="flex flex-col gap-3">
-            {/* ЮMoney */}
+            {/* СБП / Сбер */}
             <button
-              onClick={openYoomoney}
-              disabled={ymLoading}
+              onClick={openSbp}
+              disabled={sbpLoading}
               className="w-full rounded-2xl p-5 text-left transition-all hover:scale-[1.01] disabled:opacity-60"
-              style={{ background: "#161F2C", border: "2px solid rgba(108,92,231,0.4)" }}
+              style={{ background: "#161F2C", border: "2px solid rgba(33,191,115,0.4)" }}
             >
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
-                  style={{ background: "rgba(108,92,231,0.15)" }}>
-                  💳
+                  style={{ background: "rgba(33,191,115,0.12)" }}>
+                  🟢
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="font-display font-bold text-white">Карта / СБП</span>
+                    <span className="font-display font-bold text-white">СБП / Сбербанк</span>
                     <span className="px-2 py-0.5 rounded-full text-xs font-body font-bold"
-                      style={{ background: "rgba(0,176,111,0.15)", color: "#00B06F" }}>
+                      style={{ background: "rgba(33,191,115,0.15)", color: "#21BF73" }}>
                       Рекомендуем
                     </span>
                   </div>
-                  <p className="font-body text-white/40 text-sm">ЮMoney · любой российский банк</p>
+                  <p className="font-body text-white/40 text-sm">Перевод по номеру телефона · рубли</p>
                 </div>
-                {ymLoading ? (
-                  <span className="w-5 h-5 rounded-full border-2 border-purple-400 border-t-transparent animate-spin flex-shrink-0" />
+                {sbpLoading ? (
+                  <span className="w-5 h-5 rounded-full border-2 border-green-400 border-t-transparent animate-spin flex-shrink-0" />
                 ) : (
                   <Icon name="ChevronRight" size={20} className="text-white/30 flex-shrink-0" />
                 )}
