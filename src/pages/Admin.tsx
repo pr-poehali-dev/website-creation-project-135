@@ -234,7 +234,7 @@ export default function Admin() {
   const [savingPrice, setSavingPrice] = useState(false);
   const [priceMsg, setPriceMsg] = useState("");
 
-  const [usdRate, setUsdRate] = useState(90);
+  const [usdRate, setUsdRate] = useState(81.9103);
 
   const isAuthed = !!token;
 
