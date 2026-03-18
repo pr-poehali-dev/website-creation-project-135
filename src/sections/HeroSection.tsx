@@ -38,6 +38,13 @@ export default function HeroSection({ loaded, activeSection, mobileMenuOpen, use
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Оферта */}
+            <Link to="/oferta"
+              className="hidden md:block px-4 py-2 rounded-xl font-body text-sm text-white/50 hover:text-white transition-all"
+              style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+              📄 Оферта
+            </Link>
+
             {/* ПК: кнопки профиль/войти */}
             {user ? (
               <Link to="/profile"
