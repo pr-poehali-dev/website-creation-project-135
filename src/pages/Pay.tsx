@@ -462,31 +462,8 @@ export default function Pay() {
               </p>
             </div>
 
-            {/* Кнопки открытия банка */}
-            <div className="px-5 pt-4 pb-2 flex flex-col gap-2">
-              <p className="font-body text-white/40 text-xs mb-1">Быстрый переход в банк:</p>
-              {/* Сбербанк — диплинк, на мобиле открывает приложение */}
-              <a
-                href={`sberpay://transfer/phone?phone=${sbpData.phone}&amount=${sbpData.amount_rub}`}
-                className="w-full py-3 rounded-xl font-body font-bold text-sm text-white flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95"
-                style={{ background: "linear-gradient(135deg, #1DB954, #0F7A35)" }}
-              >
-                <span>🟢</span> Открыть Сбербанк
-              </a>
-              {/* Любой банк — через официальный СБП-диплинк */}
-              <a
-                href={`https://sbp.nspk.ru/qr/?type=02&sum=${sbpData.amount_rub * 100}&cur=RUB&phone=${sbpData.phone}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-3 rounded-xl font-body font-bold text-sm text-white flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95"
-                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}
-              >
-                <span>🏦</span> Другой банк (СБП)
-              </a>
-            </div>
-
             {/* Кнопка подтверждения */}
-            <div className="px-5 pt-2 pb-4">
+            <div className="px-5 pt-4 pb-4">
               <button
                 onClick={checkPayment}
                 disabled={checking}
