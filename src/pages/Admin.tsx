@@ -4,6 +4,7 @@ import Icon from "@/components/ui/icon";
 const CHAT_URL = "https://functions.poehali.dev/5dc1e3a3-dd70-49b6-a971-dd798391a238";
 const ORDERS_URL = "https://functions.poehali.dev/f852d147-eae1-4265-a94d-63d014c42231";
 const SBP_URL = "https://functions.poehali.dev/42feca66-55a3-499c-b7b5-ea34fc0494ec";
+const ONLINE_URL = "https://functions.poehali.dev/2edf71d1-04dc-4be0-8481-958f413aed14";
 
 const CATALOG_ITEMS = [
   { id: 1,  name: "Secret Lucky Block x10" },
@@ -144,6 +145,7 @@ export default function Admin() {
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [tab, setTab] = useState<"chats" | "orders" | "stock" | "catalog">("chats");
+  const [onlineCount, setOnlineCount] = useState<number | null>(null);
   const [catalogSubTab, setCatalogSubTab] = useState<"items" | "games">("items");
 
   // Catalog items
@@ -191,6 +193,12 @@ export default function Admin() {
 
   const isAuthed = !!token;
 
+  async function fetchOnlineCount() {
+    const res = await fetch(`${ONLINE_URL}?action=count`);
+    const data = await res.json();
+    if (typeof data.count === "number") setOnlineCount(data.count);
+  }
+
   useEffect(() => {
     if (!isAuthed) return;
     fetchChats();
@@ -199,7 +207,8 @@ export default function Admin() {
     fetchPrices();
     fetchCatalog();
     fetchGames();
-    const interval = setInterval(() => { fetchChats(); fetchOrders(); }, 5000);
+    fetchOnlineCount();
+    const interval = setInterval(() => { fetchChats(); fetchOrders(); fetchOnlineCount(); }, 5000);
     return () => clearInterval(interval);
   }, [isAuthed]);
 
@@ -584,10 +593,19 @@ export default function Admin() {
       {/* Navbar */}
       <nav className="h-14 flex items-center justify-between px-4 border-b border-white/5 flex-shrink-0"
         style={{ background: "#161F2C" }}>
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-display font-bold text-white"
-            style={{ background: "linear-gradient(135deg, #0066FF, #E8343A)" }}>C</div>
-          <span className="font-display font-bold text-white hidden sm:block">Cambeck<span style={{ color: "#FFB800" }}>SHOP</span></span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-display font-bold text-white"
+              style={{ background: "linear-gradient(135deg, #0066FF, #E8343A)" }}>C</div>
+            <span className="font-display font-bold text-white hidden sm:block">Cambeck<span style={{ color: "#FFB800" }}>SHOP</span></span>
+          </div>
+          {onlineCount !== null && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
+              style={{ background: "rgba(0,208,128,0.1)", border: "1px solid rgba(0,208,128,0.2)" }}>
+              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#00D080" }} />
+              <span className="font-body text-xs font-bold" style={{ color: "#00D080" }}>{onlineCount} онлайн</span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1">
           {[

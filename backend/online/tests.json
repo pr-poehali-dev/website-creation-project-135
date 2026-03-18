@@ -1,0 +1,21 @@
+{
+  "tests": [
+    {
+      "name": "Ping with session",
+      "method": "POST",
+      "path": "/?action=ping",
+      "body": {"session_id": "test-session-abc123"},
+      "expectedStatus": 200,
+      "expectedBody": {"ok": true},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get online count",
+      "method": "GET",
+      "path": "/?action=count",
+      "expectedStatus": 200,
+      "expectedBody": {"count": 1},
+      "bodyMatcher": "partial"
+    }
+  ]
+}
