@@ -629,10 +629,10 @@ def handler(event: dict, context) -> dict:
         conn = get_conn()
         cur = conn.cursor()
         schema = os.environ.get("MAIN_DB_SCHEMA", "public")
-        cur.execute(f"SELECT id, name, price_usd, stock, emoji, game, sort_order, image FROM {schema}.catalog_items ORDER BY sort_order, id")
+        cur.execute(f"SELECT id, name, price_usd, stock, emoji, game, sort_order, image, category FROM {schema}.catalog_items ORDER BY sort_order, id")
         rows = cur.fetchall()
         conn.close()
-        items = [{"id": r[0], "name": r[1], "price_usd": float(r[2]), "stock": r[3], "emoji": r[4], "game": r[5], "sort_order": r[6], "image": r[7]} for r in rows]
+        items = [{"id": r[0], "name": r[1], "price_usd": float(r[2]), "stock": r[3], "emoji": r[4], "game": r[5], "sort_order": r[6], "image": r[7], "category": r[8]} for r in rows]
         return ok({"items": items})
 
     # POST catalog_create — создать товар (admin)
@@ -645,14 +645,15 @@ def handler(event: dict, context) -> dict:
         game = body.get("game", "steal-a-brainrot")
         sort_order = body.get("sort_order", 0)
         image = body.get("image", None)
+        category = body.get("category", "units")
         if not name:
             return err("Нужно название")
         conn = get_conn()
         cur = conn.cursor()
         schema = os.environ.get("MAIN_DB_SCHEMA", "public")
         cur.execute(
-            f"INSERT INTO {schema}.catalog_items (name, price_usd, stock, emoji, game, sort_order, image) VALUES (%s, %s, 0, %s, %s, %s, %s) RETURNING id",
-            (name, float(price_usd), emoji, game, int(sort_order), image)
+            f"INSERT INTO {schema}.catalog_items (name, price_usd, stock, emoji, game, sort_order, image, category) VALUES (%s, %s, 0, %s, %s, %s, %s, %s) RETURNING id",
+            (name, float(price_usd), emoji, game, int(sort_order), image, category)
         )
         new_id = cur.fetchone()[0]
         conn.commit()
@@ -671,7 +672,7 @@ def handler(event: dict, context) -> dict:
         schema = os.environ.get("MAIN_DB_SCHEMA", "public")
         fields = []
         values = []
-        for field in ["name", "price_usd", "stock", "emoji", "game", "sort_order", "image"]:
+        for field in ["name", "price_usd", "stock", "emoji", "game", "sort_order", "image", "category"]:
             if field in body:
                 fields.append(f"{field} = %s")
                 values.append(body[field])

@@ -44,13 +44,14 @@ export default function Index() {
         .then(r => r.json())
         .then(d => {
           if (d.items && d.items.length > 0) {
-            setDbCatalog(d.items.map((i: { id: number; name: string; price_usd: number; stock: number; emoji: string; game: string; image?: string | null }) => ({
+            setDbCatalog(d.items.map((i: { id: number; name: string; price_usd: number; stock: number; emoji: string; game: string; category?: string; image?: string | null }) => ({
               id: i.id,
               name: i.name,
               priceUsd: i.price_usd,
               stock: i.stock,
               emoji: i.emoji,
               game: i.game,
+              category: i.category,
               image: i.image || null,
             })));
           }

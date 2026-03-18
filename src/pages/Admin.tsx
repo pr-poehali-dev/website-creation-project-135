@@ -27,7 +27,14 @@ type Message = { id: string; sender: string; text: string; created_at: string };
 type Order = { order_id: string; item_name: string; amount_usd: number; quantity: number; network: string; status: string; created_at: string; };
 type StockRow = { item_id: number; available: number; total: number };
 type Account = { id: string; credentials: string; is_sold: boolean; sold_at: string | null; created_at: string };
-type CatalogItemAdmin = { id: number; name: string; price_usd: number; stock: number; emoji: string; game: string; sort_order: number; image?: string | null };
+type CatalogItemAdmin = { id: number; name: string; price_usd: number; stock: number; emoji: string; game: string; sort_order: number; category?: string; image?: string | null };
+
+const GAME_CATEGORIES: Record<string, { id: string; label: string }[]> = {
+  "toilet-tower-defense": [
+    { id: "units", label: "🗡️ Юниты" },
+    { id: "currency", label: "💰 Валюта" },
+  ],
+};
 
 
 function NewItemForm({ token, onCreated, gamesList, usdRate }: { token: string; onCreated: () => void; gamesList: { id: string; name: string }[]; usdRate: number }) {
@@ -1138,6 +1145,25 @@ export default function Admin() {
                   </select>
                 </div>
 
+                {GAME_CATEGORIES[newItem.game || ""] && (
+                  <div className="sm:col-span-2">
+                    <label className="font-body text-white/40 text-xs mb-1 block">Категория</label>
+                    <div className="flex gap-2">
+                      {GAME_CATEGORIES[newItem.game || ""].map(cat => (
+                        <button key={cat.id} onClick={() => setNewItem(p => ({ ...p, category: cat.id }))}
+                          className="px-4 py-2 rounded-xl font-body text-sm transition-all"
+                          style={{
+                            background: (newItem.category || "units") === cat.id ? "rgba(0,102,255,0.25)" : "rgba(255,255,255,0.05)",
+                            border: `1px solid ${(newItem.category || "units") === cat.id ? "rgba(0,102,255,0.5)" : "rgba(255,255,255,0.1)"}`,
+                            color: (newItem.category || "units") === cat.id ? "#4DA6FF" : "rgba(255,255,255,0.4)"
+                          }}>
+                          {cat.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className="font-body text-white/40 text-xs mb-1 block">Позиция в списке</label>
                   <input type="number" value={newItem.sort_order || 0} onChange={e => setNewItem(p => ({ ...p, sort_order: parseInt(e.target.value) }))}
@@ -1225,6 +1251,22 @@ export default function Admin() {
                                   className="flex-1 px-2 py-1.5 rounded-lg font-body text-sm text-white outline-none"
                                   style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
                               </div>
+                              {GAME_CATEGORIES[editingItem.game] && (
+                                <div className="col-span-2 sm:col-span-4 flex gap-2 flex-wrap">
+                                  <span className="font-body text-white/30 text-xs self-center">Категория:</span>
+                                  {GAME_CATEGORIES[editingItem.game].map(cat => (
+                                    <button key={cat.id} onClick={() => setEditingItem(p => p ? { ...p, category: cat.id } : p)}
+                                      className="px-3 py-1 rounded-lg font-body text-xs transition-all"
+                                      style={{
+                                        background: (editingItem.category || "units") === cat.id ? "rgba(0,102,255,0.25)" : "rgba(255,255,255,0.05)",
+                                        border: `1px solid ${(editingItem.category || "units") === cat.id ? "rgba(0,102,255,0.5)" : "rgba(255,255,255,0.1)"}`,
+                                        color: (editingItem.category || "units") === cat.id ? "#4DA6FF" : "rgba(255,255,255,0.4)"
+                                      }}>
+                                      {cat.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                               <div className="col-span-2 sm:col-span-4 flex gap-2 mt-1">
                                 <button onClick={() => updateCatalogItem(editingItem)}
                                   className="px-4 py-1.5 rounded-lg font-body font-bold text-xs text-white"

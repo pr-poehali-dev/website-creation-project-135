@@ -12,6 +12,7 @@ export type CatalogItem = {
   stock: number;
   emoji: string;
   game: string;
+  category?: string;
   image?: string | null;
 };
 
@@ -106,9 +107,18 @@ type Props = {
   onOpenSupport: () => void;
 };
 
+const GAME_CATEGORIES: Record<string, { id: string; label: string }[]> = {
+  "toilet-tower-defense": [
+    { id: "all", label: "Все" },
+    { id: "currency", label: "💰 Валюта" },
+    { id: "units", label: "🗡️ Юниты" },
+  ],
+};
+
 export default function CatalogSection({ dbCatalog, dbGames, dbPrices, dbStock, usdRate, selectedGame, onSelectGame, onOpenSupport }: Props) {
   const games = dbGames.length > 0 ? dbGames : GAMES;
   const items = dbCatalog.length > 0 ? dbCatalog : catalogItems;
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   return (
     <section id="Каталог" className="py-20 px-4">
@@ -153,7 +163,7 @@ export default function CatalogSection({ dbCatalog, dbGames, dbPrices, dbStock, 
           </div>
         ) : (
           <div>
-            <button onClick={() => onSelectGame(null)}
+            <button onClick={() => { onSelectGame(null); setSelectedCategory("all"); }}
               className="inline-flex items-center gap-2 mb-6 font-body text-sm text-white/50 hover:text-white transition-colors">
               <Icon name="ChevronLeft" size={16} /> Все игры
             </button>
@@ -170,11 +180,34 @@ export default function CatalogSection({ dbCatalog, dbGames, dbPrices, dbStock, 
               </div>
             ))}
 
+            {/* Табы категорий (только для игр с категориями) */}
+            {selectedGame && GAME_CATEGORIES[selectedGame] && (
+              <div className="flex gap-2 mb-6">
+                {GAME_CATEGORIES[selectedGame].map(cat => (
+                  <button key={cat.id} onClick={() => setSelectedCategory(cat.id)}
+                    className="px-4 py-2 rounded-xl font-body text-sm font-bold transition-all"
+                    style={{
+                      background: selectedCategory === cat.id ? "rgba(0,102,255,0.25)" : "rgba(255,255,255,0.05)",
+                      border: `1px solid ${selectedCategory === cat.id ? "rgba(0,102,255,0.5)" : "rgba(255,255,255,0.08)"}`,
+                      color: selectedCategory === cat.id ? "#4DA6FF" : "rgba(255,255,255,0.45)",
+                    }}>
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="mb-10">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {items.filter(i => i.game === selectedGame).map((item) => (
-                  <CatalogCard key={item.id} usdRate={usdRate} item={{ ...item, priceUsd: dbPrices[String(item.id)] ?? item.priceUsd, stock: dbStock[String(item.id)] ?? item.stock }} />
-                ))}
+                {items
+                  .filter(i => i.game === selectedGame)
+                  .filter(i => {
+                    if (!selectedGame || !GAME_CATEGORIES[selectedGame] || selectedCategory === "all") return true;
+                    return (i.category || "units") === selectedCategory;
+                  })
+                  .map((item) => (
+                    <CatalogCard key={item.id} usdRate={usdRate} item={{ ...item, priceUsd: dbPrices[String(item.id)] ?? item.priceUsd, stock: dbStock[String(item.id)] ?? item.stock }} />
+                  ))}
               </div>
             </div>
 
