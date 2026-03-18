@@ -126,6 +126,26 @@ export default function Index() {
         onCloseReviews={() => setReviewModalOpen(false)}
         onCloseSupport={() => setSupportModalOpen(false)}
       />
+
+      {/* Footer */}
+      <footer className="border-t border-white/5 py-8 px-4" style={{ background: "#0B1520" }}>
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="font-body text-white/25 text-xs text-center sm:text-left">
+            © 2026 CambeckSHOP · Петров (самозанятый, ИНН 236400944070)
+          </p>
+          <div className="flex items-center gap-5">
+            <a href="/oferta" className="font-body text-white/35 hover:text-white/70 text-xs transition-colors">
+              Публичная оферта
+            </a>
+            <a href="/privacy" className="font-body text-white/35 hover:text-white/70 text-xs transition-colors">
+              Политика конфиденциальности
+            </a>
+            <a href="mailto:cambeckshop@gmail.com" className="font-body text-white/35 hover:text-white/70 text-xs transition-colors">
+              cambeckshop@gmail.com
+            </a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

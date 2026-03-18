@@ -42,6 +42,8 @@ import Profile from "./pages/Profile";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Requisites from "./pages/Requisites";
+import Oferta from "./pages/Oferta";
+import Privacy from "./pages/Privacy";
 import ChatWidget from "./components/ChatWidget";
 
 const queryClient = new QueryClient();
@@ -62,6 +64,8 @@ function AppRoutes() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/requisites" element={<Requisites />} />
+        <Route path="/oferta" element={<Oferta />} />
+        <Route path="/privacy" element={<Privacy />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
