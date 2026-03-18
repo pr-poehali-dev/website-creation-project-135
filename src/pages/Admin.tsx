@@ -226,6 +226,10 @@ export default function Admin() {
   const [priceMsg, setPriceMsg] = useState("");
 
   const [usdRate, setUsdRate] = useState(81.9103);
+  const [inlineStockItemId, setInlineStockItemId] = useState<number | null>(null);
+  const [inlineStockText, setInlineStockText] = useState("");
+  const [inlineStockSaving, setInlineStockSaving] = useState(false);
+  const [inlineStockMsg, setInlineStockMsg] = useState("");
 
   const isAuthed = !!token;
 
@@ -564,6 +568,28 @@ export default function Admin() {
       fetchCatalog();
       setTimeout(() => setCatalogMsg(""), 2000);
     } else setCatalogMsg("❌ " + (data.error || "Ошибка"));
+  }
+
+  async function inlineAddStock(itemId: number) {
+    const lines = inlineStockText.trim().split("\n").filter(l => l.trim());
+    if (!lines.length) return;
+    setInlineStockSaving(true);
+    setInlineStockMsg("");
+    const res = await fetch(`${ORDERS_URL}?action=add_stock`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+      body: JSON.stringify({ item_id: itemId, credentials: lines }),
+    });
+    const data = await res.json();
+    if (data.added) {
+      setInlineStockMsg(`✅ +${data.added} лот${data.added === 1 ? "" : data.added < 5 ? "а" : "ов"}`);
+      setInlineStockText("");
+      fetchCatalog();
+      setTimeout(() => { setInlineStockMsg(""); setInlineStockItemId(null); }, 1800);
+    } else {
+      setInlineStockMsg("❌ " + (data.error || "Ошибка"));
+    }
+    setInlineStockSaving(false);
   }
 
   async function deleteCatalogItem(id: number) {
@@ -1278,46 +1304,108 @@ export default function Admin() {
                             </div>
                           </div>
                         ) : (
-                          <>
-                            {item.image ? (
-                              <img src={item.image} alt={item.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
-                            ) : (
-                              <span className="text-xl w-12 text-center flex-shrink-0">{item.emoji}</span>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <div className="font-body text-white text-sm truncate">{item.name}</div>
-                              <div className="font-body text-white/40 text-xs">
-                                <span style={{ color: "#4DA6FF" }}>{Math.round(item.price_usd * usdRate)} ₽</span>
-                                <span className="text-white/25"> · ${item.price_usd}</span>
+                          <div className="flex-1 flex flex-col gap-0">
+                            <div className="flex items-center gap-3">
+                              {item.image ? (
+                                <img src={item.image} alt={item.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
+                              ) : (
+                                <span className="text-xl w-12 text-center flex-shrink-0">{item.emoji}</span>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="font-body text-white text-sm truncate">{item.name}</div>
+                                <div className="font-body text-white/40 text-xs">
+                                  <span style={{ color: "#4DA6FF" }}>{Math.round(item.price_usd * usdRate)} ₽</span>
+                                  <span className="text-white/25"> · ${item.price_usd}</span>
+                                </div>
                               </div>
-                            </div>
-                            {/* Инлайн-редактор количества */}
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                              <button onClick={() => updateCatalogItem({ ...item, stock: Math.max(0, item.stock - 1) })}
-                                className="w-7 h-7 rounded-lg font-bold text-sm text-white/60 hover:text-white transition-colors flex items-center justify-center"
-                                style={{ background: "rgba(255,255,255,0.07)" }}>−</button>
-                              <input
-                                type="number"
-                                value={item.stock}
-                                onChange={e => {
-                                  const val = parseInt(e.target.value) || 0;
-                                  setCatalogItems(prev => prev.map(i => i.id === item.id ? { ...i, stock: val } : i));
+                              {/* Инлайн-редактор количества */}
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <button onClick={() => updateCatalogItem({ ...item, stock: Math.max(0, item.stock - 1) })}
+                                  className="w-7 h-7 rounded-lg font-bold text-sm text-white/60 hover:text-white transition-colors flex items-center justify-center"
+                                  style={{ background: "rgba(255,255,255,0.07)" }}>−</button>
+                                <input
+                                  type="number"
+                                  value={item.stock}
+                                  onChange={e => {
+                                    const val = parseInt(e.target.value) || 0;
+                                    setCatalogItems(prev => prev.map(i => i.id === item.id ? { ...i, stock: val } : i));
+                                  }}
+                                  onBlur={e => updateCatalogItem({ ...item, stock: parseInt(e.target.value) || 0 })}
+                                  className="w-14 text-center px-1 py-1 rounded-lg font-body text-sm text-white outline-none"
+                                  style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+                                <button onClick={() => updateCatalogItem({ ...item, stock: item.stock + 1 })}
+                                  className="w-7 h-7 rounded-lg font-bold text-sm text-white/60 hover:text-white transition-colors flex items-center justify-center"
+                                  style={{ background: "rgba(255,255,255,0.07)" }}>+</button>
+                                <span className="font-body text-white/30 text-xs ml-0.5">шт</span>
+                              </div>
+                              {/* Кнопка добавить лоты */}
+                              <button
+                                onClick={() => {
+                                  if (inlineStockItemId === item.id) { setInlineStockItemId(null); setInlineStockText(""); setInlineStockMsg(""); }
+                                  else { setInlineStockItemId(item.id); setInlineStockText(""); setInlineStockMsg(""); }
                                 }}
-                                onBlur={e => updateCatalogItem({ ...item, stock: parseInt(e.target.value) || 0 })}
-                                className="w-14 text-center px-1 py-1 rounded-lg font-body text-sm text-white outline-none"
-                                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
-                              <button onClick={() => updateCatalogItem({ ...item, stock: item.stock + 1 })}
-                                className="w-7 h-7 rounded-lg font-bold text-sm text-white/60 hover:text-white transition-colors flex items-center justify-center"
-                                style={{ background: "rgba(255,255,255,0.07)" }}>+</button>
-                              <span className="font-body text-white/30 text-xs ml-0.5">шт</span>
+                                className="px-3 py-1.5 rounded-lg font-body text-xs font-bold transition-all flex-shrink-0"
+                                style={{
+                                  background: inlineStockItemId === item.id ? "rgba(0,208,128,0.2)" : "rgba(0,208,128,0.1)",
+                                  border: `1px solid ${inlineStockItemId === item.id ? "rgba(0,208,128,0.5)" : "rgba(0,208,128,0.2)"}`,
+                                  color: "#00D080"
+                                }}>
+                                {inlineStockItemId === item.id ? "✕" : "📦 +лоты"}
+                              </button>
+                              <button onClick={() => setEditingItem({ ...item })}
+                                className="px-3 py-1.5 rounded-lg font-body text-xs text-white/60 hover:text-white transition-colors flex-shrink-0"
+                                style={{ background: "rgba(255,255,255,0.05)" }}>✏️</button>
+                              <button onClick={() => deleteCatalogItem(item.id)}
+                                className="px-3 py-1.5 rounded-lg font-body text-xs text-red-400/60 hover:text-red-400 transition-colors flex-shrink-0"
+                                style={{ background: "rgba(232,52,58,0.07)" }}>🗑️</button>
                             </div>
-                            <button onClick={() => setEditingItem({ ...item })}
-                              className="px-3 py-1.5 rounded-lg font-body text-xs text-white/60 hover:text-white transition-colors"
-                              style={{ background: "rgba(255,255,255,0.05)" }}>✏️</button>
-                            <button onClick={() => deleteCatalogItem(item.id)}
-                              className="px-3 py-1.5 rounded-lg font-body text-xs text-red-400/60 hover:text-red-400 transition-colors"
-                              style={{ background: "rgba(232,52,58,0.07)" }}>🗑️</button>
-                          </>
+
+                            {/* Панель добавления лотов */}
+                            {inlineStockItemId === item.id && (
+                              <div className="mt-3 pl-15" style={{ paddingLeft: "60px" }}>
+                                <div className="rounded-xl p-3 flex flex-col gap-2"
+                                  style={{ background: "rgba(0,208,128,0.05)", border: "1px solid rgba(0,208,128,0.15)" }}>
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-body text-white/50 text-xs">Вставь лоты — по одному на строку</span>
+                                    {inlineStockText.trim() && (
+                                      <span className="font-body text-xs px-2 py-0.5 rounded-full"
+                                        style={{ background: "rgba(0,208,128,0.15)", color: "#00D080", border: "1px solid rgba(0,208,128,0.25)" }}>
+                                        {inlineStockText.trim().split("\n").filter(l => l.trim()).length} лот
+                                        {inlineStockText.trim().split("\n").filter(l => l.trim()).length === 1 ? "" :
+                                          inlineStockText.trim().split("\n").filter(l => l.trim()).length < 5 ? "а" : "ов"}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <textarea
+                                    value={inlineStockText}
+                                    onChange={e => setInlineStockText(e.target.value)}
+                                    rows={4}
+                                    placeholder={"login1:pass1\nlogin2:pass2\n..."}
+                                    className="w-full px-3 py-2 rounded-lg font-mono text-xs text-white outline-none resize-none"
+                                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+                                    autoFocus
+                                  />
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => inlineAddStock(item.id)}
+                                      disabled={inlineStockSaving || !inlineStockText.trim()}
+                                      className="px-4 py-1.5 rounded-lg font-body font-bold text-xs text-white disabled:opacity-40 transition-opacity"
+                                      style={{ background: "linear-gradient(135deg, #00B06F, #007A4D)" }}>
+                                      {inlineStockSaving ? "Загружаем..." : "✅ Добавить"}
+                                    </button>
+                                    <button onClick={() => { setInlineStockItemId(null); setInlineStockText(""); setInlineStockMsg(""); }}
+                                      className="px-3 py-1.5 rounded-lg font-body text-xs text-white/40 hover:text-white transition-colors"
+                                      style={{ background: "rgba(255,255,255,0.05)" }}>Отмена</button>
+                                    {inlineStockMsg && (
+                                      <span className="font-body text-xs ml-1" style={{ color: inlineStockMsg.startsWith("✅") ? "#00D080" : "#FF6B6B" }}>
+                                        {inlineStockMsg}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     ))}
