@@ -119,6 +119,12 @@ export default function CatalogSection({ dbCatalog, dbGames, dbPrices, dbStock, 
   const games = dbGames.length > 0 ? dbGames : GAMES;
   const items = dbCatalog.length > 0 ? dbCatalog : catalogItems;
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [search, setSearch] = useState("");
+
+  const searchQuery = search.trim().toLowerCase();
+  const searchResults = searchQuery.length >= 2
+    ? items.filter(i => i.name.toLowerCase().includes(searchQuery))
+    : [];
 
   return (
     <section id="Каталог" className="py-20 px-4">
@@ -129,7 +135,47 @@ export default function CatalogSection({ dbCatalog, dbGames, dbPrices, dbStock, 
           <div className="pixel-divider max-w-xs mx-auto mt-4" />
         </div>
 
-        {!selectedGame ? (
+        {/* Поиск */}
+        <div className="relative max-w-xl mx-auto mb-10">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">
+            <Icon name="Search" size={18} />
+          </div>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Поиск по каталогу..."
+            className="w-full pl-11 pr-10 py-3.5 rounded-2xl font-body text-sm text-white outline-none transition-all"
+            style={{
+              background: "rgba(22,31,44,0.9)",
+              border: `1px solid ${searchQuery.length >= 2 ? "rgba(0,102,255,0.4)" : "rgba(255,255,255,0.1)"}`,
+            }}
+          />
+          {search && (
+            <button onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70 transition-colors">
+              <Icon name="X" size={16} />
+            </button>
+          )}
+        </div>
+
+        {/* Результаты поиска */}
+        {searchQuery.length >= 2 ? (
+          <div>
+            <p className="font-body text-white/40 text-sm mb-5">
+              {searchResults.length > 0
+                ? `Найдено: ${searchResults.length} товар${searchResults.length === 1 ? "" : searchResults.length < 5 ? "а" : "ов"}`
+                : "Ничего не найдено — попробуй другой запрос"}
+            </p>
+            {searchResults.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
+                {searchResults.map(item => (
+                  <CatalogCard key={item.id} usdRate={usdRate}
+                    item={{ ...item, priceUsd: dbPrices[String(item.id)] ?? item.priceUsd, stock: dbStock[String(item.id)] ?? item.stock }} />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : !selectedGame ? (
           <div>
             <p className="text-white/40 font-body text-sm mb-6 text-center">Выбери игру, чтобы увидеть товары</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
