@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 
 const ORDERS_URL = "https://functions.poehali.dev/f852d147-eae1-4265-a94d-63d014c42231";
+const YOOMONEY_URL = "https://functions.poehali.dev/yoomoney"; // заменится после деплоя
 
 const NETWORK_ICONS: Record<string, string> = {
   LTC: "Ł",
@@ -49,6 +50,9 @@ export default function Pay() {
   const [secondsLeft, setSecondsLeft] = useState(1800);
   const [expired, setExpired] = useState(false);
   const [cryptoRate, setCryptoRate] = useState<number | null>(null);
+  const [payMethod, setPayMethod] = useState<"crypto" | "yoomoney" | null>(null);
+  const [ymLoading, setYmLoading] = useState(false);
+  const [ymAmountRub, setYmAmountRub] = useState<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -60,7 +64,6 @@ export default function Pay() {
 
   useEffect(() => {
     if (!order || order.crypto_amount) return;
-    // Только если курс не зафиксирован в БД — запрашиваем динамически
     fetchRate(order.network);
   }, [order?.network]);
 
@@ -78,13 +81,11 @@ export default function Pay() {
 
   function getCryptoAmount(): string | null {
     if (!order) return null;
-    // Приоритет — зафиксированный курс из БД
     if (order.crypto_amount) {
       if (order.network === "USDT_BEP" || order.network === "USDT_TRC") return order.crypto_amount.toFixed(2) + " USDT";
       if (order.network === "LTC") return order.crypto_amount.toFixed(6) + " LTC";
       if (order.network === "SOL") return order.crypto_amount.toFixed(4) + " SOL";
     }
-    // Fallback — динамический курс
     if (order.network === "USDT_BEP" || order.network === "USDT_TRC") return order.amount_usd.toFixed(2) + " USDT";
     if (!cryptoRate) return null;
     const amount = order.amount_usd / cryptoRate;
@@ -119,6 +120,7 @@ export default function Pay() {
       if (!data.error) {
         setOrder(data);
         if (data.status === "expired") setExpired(true);
+        if (data.status === "yoomoney_pending") setPayMethod("yoomoney");
       }
     } catch {
       // ignore
@@ -149,6 +151,28 @@ export default function Pay() {
       // ignore
     }
     setChecking(false);
+  }
+
+  async function openYoomoney() {
+    if (!order) return;
+    setYmLoading(true);
+    try {
+      const returnUrl = window.location.href;
+      const res = await fetch(`${YOOMONEY_URL}?action=create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order_id: order.order_id, return_url: returnUrl }),
+      });
+      const data = await res.json();
+      if (data.payment_url) {
+        setYmAmountRub(data.amount_rub);
+        setPayMethod("yoomoney");
+        window.open(data.payment_url, "_blank");
+      }
+    } catch {
+      // ignore
+    }
+    setYmLoading(false);
   }
 
   function copyAddress() {
@@ -194,7 +218,6 @@ export default function Pay() {
               Заказ: <b className="text-white">{order.item_name}</b> × {order.quantity}
             </p>
 
-            {/* Аккаунты (только для Brainrot) */}
             {order.accounts && order.accounts.length > 0 && (
               <div className="text-left rounded-xl p-4 mb-4"
                 style={{ background: "rgba(0,176,111,0.08)", border: "1px solid rgba(0,176,111,0.2)" }}>
@@ -213,7 +236,6 @@ export default function Pay() {
               </div>
             )}
 
-            {/* Чат для ручной выдачи */}
             {needsChat && (
               <div className="rounded-xl p-5 mb-5 text-left"
                 style={{ background: "rgba(0,102,255,0.08)", border: "1px solid rgba(0,102,255,0.25)" }}>
@@ -248,7 +270,7 @@ export default function Pay() {
 
             {!needsChat && <p className="font-body text-white/30 text-xs mb-5">Сохрани данные — повторно они не будут показаны</p>}
             <a href="/"
-              className="inline-block px-6 py-3 rounded-xl font-body font-bold text-sm text-white/50 hover:text-white transition-colors text-sm">
+              className="inline-block px-6 py-3 rounded-xl font-body font-bold text-sm text-white/50 hover:text-white transition-colors">
               ← Вернуться в магазин
             </a>
           </div>
@@ -273,17 +295,230 @@ export default function Pay() {
     </div>
   );
 
+  // ── Экран ожидания ЮMoney ─────────────────────────────────────────────────
+  if (payMethod === "yoomoney") {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 py-10" style={{ background: "#0F1923" }}>
+        <div className="w-full max-w-md">
+          <div className="flex items-center gap-3 mb-6">
+            <button onClick={() => setPayMethod(null)} className="text-white/40 hover:text-white transition-colors">
+              <Icon name="ArrowLeft" size={20} />
+            </button>
+            <div>
+              <h1 className="font-display font-bold text-white text-xl">Оплата ЮMoney</h1>
+              <p className="font-body text-white/40 text-xs">#{order.order_id.slice(0, 8).toUpperCase()}</p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl overflow-hidden animate-slide-up"
+            style={{ background: "#161F2C", border: "1px solid rgba(255,255,255,0.06)" }}>
+
+            {/* Товар + сумма */}
+            <div className="px-5 py-4 border-b border-white/5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-body text-white/50 text-xs mb-1">Товар</p>
+                  <p className="font-display font-bold text-white">{order.item_name} × {order.quantity}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-body text-white/50 text-xs mb-1">К оплате</p>
+                  <p className="font-display font-bold text-2xl" style={{ color: "#4DA6FF" }}>
+                    ${order.amount_usd.toFixed(2)}
+                  </p>
+                  {ymAmountRub && (
+                    <p className="font-body text-white/30 text-xs">≈ {ymAmountRub.toLocaleString("ru")} ₽</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Таймер */}
+            <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between"
+              style={{ background: "rgba(255,184,0,0.05)" }}>
+              <span className="font-body text-white/50 text-xs">Время на оплату</span>
+              <span className="font-display font-bold text-lg"
+                style={{ color: secondsLeft < 300 ? "#E8343A" : "#FFB800" }}>
+                ⏱ {formatTime(secondsLeft)}
+              </span>
+            </div>
+
+            {/* Инструкция */}
+            <div className="px-5 py-5 border-b border-white/5">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-xs"
+                  style={{ background: "rgba(108,92,231,0.2)", color: "#6C5CE7" }}>1</div>
+                <div>
+                  <p className="font-body text-white text-sm font-bold">Откройте страницу оплаты</p>
+                  <p className="font-body text-white/40 text-xs mt-0.5">Нажмите кнопку ниже — откроется ЮMoney</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-xs"
+                  style={{ background: "rgba(108,92,231,0.2)", color: "#6C5CE7" }}>2</div>
+                <div>
+                  <p className="font-body text-white text-sm font-bold">Оплатите картой или по СБП</p>
+                  <p className="font-body text-white/40 text-xs mt-0.5">Любой российский банк, без комиссии</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-xs"
+                  style={{ background: "rgba(108,92,231,0.2)", color: "#6C5CE7" }}>3</div>
+                <div>
+                  <p className="font-body text-white text-sm font-bold">Вернитесь и нажмите «Я оплатил»</p>
+                  <p className="font-body text-white/40 text-xs mt-0.5">Система автоматически проверит платёж</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Кнопки */}
+            <div className="px-5 py-4 flex flex-col gap-3">
+              <button
+                onClick={openYoomoney}
+                disabled={ymLoading}
+                className="w-full py-3.5 rounded-xl font-body font-bold text-white text-base transition-all hover:scale-[1.02] disabled:opacity-60 flex items-center justify-center gap-2"
+                style={{ background: "linear-gradient(135deg, #6C5CE7, #4A3AB0)" }}
+              >
+                {ymLoading ? (
+                  <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                ) : (
+                  <>
+                    <span>💳</span>
+                    <span>Открыть страницу оплаты</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={checkPayment}
+                disabled={checking}
+                className="w-full py-3.5 rounded-xl font-body font-bold text-white text-base transition-all hover:scale-[1.02] disabled:opacity-60 flex items-center justify-center gap-2"
+                style={{ background: "linear-gradient(135deg, #00B06F, #007A4D)" }}
+              >
+                {checking ? (
+                  <>
+                    <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                    <span>Проверяем оплату...</span>
+                  </>
+                ) : "✅ Я оплатил — проверить"}
+              </button>
+            </div>
+
+            <p className="font-body text-white/20 text-xs text-center pb-4 px-5">
+              Проверка происходит автоматически каждые 15 сек
+            </p>
+          </div>
+
+          <p className="text-center font-body text-white/20 text-xs mt-4">
+            Проблема с оплатой? Напиши в поддержку на сайте
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Выбор метода оплаты ───────────────────────────────────────────────────
+  if (payMethod === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 py-10" style={{ background: "#0F1923" }}>
+        <div className="w-full max-w-md">
+          <div className="flex items-center gap-3 mb-6">
+            <a href="/" className="text-white/40 hover:text-white transition-colors">
+              <Icon name="ArrowLeft" size={20} />
+            </a>
+            <div>
+              <h1 className="font-display font-bold text-white text-xl">Способ оплаты</h1>
+              <p className="font-body text-white/40 text-xs">#{order.order_id.slice(0, 8).toUpperCase()}</p>
+            </div>
+          </div>
+
+          {/* Товар */}
+          <div className="rounded-2xl mb-4 px-5 py-4"
+            style={{ background: "#161F2C", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-body text-white/50 text-xs mb-1">Товар</p>
+                <p className="font-display font-bold text-white">{order.item_name} × {order.quantity}</p>
+              </div>
+              <div className="text-right">
+                <p className="font-body text-white/50 text-xs mb-1">К оплате</p>
+                <p className="font-display font-bold text-2xl" style={{ color: "#4DA6FF" }}>
+                  ${order.amount_usd.toFixed(2)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {/* ЮMoney */}
+            <button
+              onClick={openYoomoney}
+              disabled={ymLoading}
+              className="w-full rounded-2xl p-5 text-left transition-all hover:scale-[1.01] disabled:opacity-60"
+              style={{ background: "#161F2C", border: "2px solid rgba(108,92,231,0.4)" }}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+                  style={{ background: "rgba(108,92,231,0.15)" }}>
+                  💳
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="font-display font-bold text-white">Карта / СБП</span>
+                    <span className="px-2 py-0.5 rounded-full text-xs font-body font-bold"
+                      style={{ background: "rgba(0,176,111,0.15)", color: "#00B06F" }}>
+                      Рекомендуем
+                    </span>
+                  </div>
+                  <p className="font-body text-white/40 text-sm">ЮMoney · любой российский банк</p>
+                </div>
+                {ymLoading ? (
+                  <span className="w-5 h-5 rounded-full border-2 border-purple-400 border-t-transparent animate-spin flex-shrink-0" />
+                ) : (
+                  <Icon name="ChevronRight" size={20} className="text-white/30 flex-shrink-0" />
+                )}
+              </div>
+            </button>
+
+            {/* Крипта */}
+            <button
+              onClick={() => setPayMethod("crypto")}
+              className="w-full rounded-2xl p-5 text-left transition-all hover:scale-[1.01]"
+              style={{ background: "#161F2C", border: "1px solid rgba(255,255,255,0.06)" }}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+                  style={{ background: "rgba(255,184,0,0.1)" }}>
+                  ₿
+                </div>
+                <div className="flex-1">
+                  <span className="font-display font-bold text-white block mb-0.5">Криптовалюта</span>
+                  <p className="font-body text-white/40 text-sm">LTC, USDT, SOL · без ограничений</p>
+                </div>
+                <Icon name="ChevronRight" size={20} className="text-white/30 flex-shrink-0" />
+              </div>
+            </button>
+          </div>
+
+          <p className="text-center font-body text-white/20 text-xs mt-4">
+            Проблема с оплатой? Напиши в поддержку на сайте
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Крипта ────────────────────────────────────────────────────────────────
   const netColor = NETWORK_COLORS[order.network] || "#0066FF";
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-10" style={{ background: "#0F1923" }}>
       <div className="w-full max-w-md">
         <div className="flex items-center gap-3 mb-6">
-          <a href="/" className="text-white/40 hover:text-white transition-colors">
+          <button onClick={() => setPayMethod(null)} className="text-white/40 hover:text-white transition-colors">
             <Icon name="ArrowLeft" size={20} />
-          </a>
+          </button>
           <div>
-            <h1 className="font-display font-bold text-white text-xl">Оплата заказа</h1>
+            <h1 className="font-display font-bold text-white text-xl">Оплата криптой</h1>
             <p className="font-body text-white/40 text-xs">#{order.order_id.slice(0, 8).toUpperCase()}</p>
           </div>
         </div>

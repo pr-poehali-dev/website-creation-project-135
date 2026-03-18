@@ -337,7 +337,7 @@ def handler(event: dict, context) -> dict:
         # Автоудаляем pending-заказы старше 30 минут
         cur.execute(f"""
             UPDATE {schema}.orders SET status = 'expired'
-            WHERE status = 'pending'
+            WHERE status IN ('pending', 'yoomoney_pending')
             AND created_at < NOW() - INTERVAL '30 minutes'
         """)
         conn.commit()

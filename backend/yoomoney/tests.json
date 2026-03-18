@@ -1,0 +1,26 @@
+{
+  "tests": [
+    {
+      "name": "OPTIONS preflight",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "Unknown action returns error",
+      "method": "GET",
+      "path": "/?action=unknown",
+      "expectedStatus": 400,
+      "expectedBody": {"error": "Unknown action"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Status without order_id",
+      "method": "GET",
+      "path": "/?action=status",
+      "expectedStatus": 400,
+      "expectedBody": {"error": "order_id required"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}
