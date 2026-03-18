@@ -42,6 +42,8 @@ function NewItemForm({ token, onCreated }: { token: string; onCreated: () => voi
   const [itemId, setItemId] = useState("");
   const [priceUsd, setPriceUsd] = useState("");
   const [emoji, setEmoji] = useState("🎮");
+  const [game, setGame] = useState("steal-a-brainrot");
+  const [category, setCategory] = useState("lucky");
   const [credentials, setCredentials] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
@@ -53,6 +55,15 @@ function NewItemForm({ token, onCreated }: { token: string; onCreated: () => voi
     }
     setSaving(true);
     setMsg("");
+
+    const catalogRes = await fetch(`${ORDERS_URL}?action=catalog_create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+      body: JSON.stringify({ name: name.trim(), price_usd: parseFloat(priceUsd), emoji, game, category, sort_order: 0 }),
+    });
+    const catalogData = await catalogRes.json();
+    if (catalogData.error) { setMsg("❌ " + catalogData.error); setSaving(false); return; }
+
     const lines = credentials.trim().split("\n").filter(l => l.trim());
     if (lines.length > 0) {
       const res = await fetch(`${ORDERS_URL}?action=add_stock`, {
@@ -63,9 +74,9 @@ function NewItemForm({ token, onCreated }: { token: string; onCreated: () => voi
       const data = await res.json();
       if (data.error) { setMsg("❌ " + data.error); setSaving(false); return; }
     }
-    setMsg(`✅ Товар создан${lines.length > 0 ? `, добавлено ${lines.length} аккаунтов` : ""}`);
+    setMsg(`✅ Товар добавлен в каталог${lines.length > 0 ? ` и ${lines.length} аккаунтов загружено` : ""}`);
     setSaving(false);
-    setTimeout(() => onCreated(), 1000);
+    setTimeout(() => onCreated(), 1200);
   }
 
   return (
@@ -105,6 +116,26 @@ function NewItemForm({ token, onCreated }: { token: string; onCreated: () => voi
             style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
         </div>
 
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="font-body text-white/50 text-xs mb-1.5 block">Игра</label>
+            <select value={game} onChange={e => setGame(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl font-body text-sm text-white outline-none"
+              style={{ background: "#1e2a3a", border: "1px solid rgba(255,255,255,0.1)" }}>
+              {GAMES_LIST.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="font-body text-white/50 text-xs mb-1.5 block">Категория</label>
+            <select value={category} onChange={e => setCategory(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl font-body text-sm text-white outline-none"
+              style={{ background: "#1e2a3a", border: "1px solid rgba(255,255,255,0.1)" }}>
+              <option value="lucky">Lucky</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+
         <div>
           <label className="font-body text-white/50 text-xs mb-1.5 block">Аккаунты (по одному на строку)</label>
           <textarea value={credentials} onChange={e => setCredentials(e.target.value)}
@@ -130,9 +161,9 @@ function NewItemForm({ token, onCreated }: { token: string; onCreated: () => voi
         </div>
       </div>
 
-      <div className="mt-4 p-4 rounded-xl" style={{ background: "rgba(255,184,0,0.07)", border: "1px solid rgba(255,184,0,0.15)" }}>
-        <p className="font-body text-yellow-400/70 text-xs leading-relaxed">
-          ⚠️ После создания нужно добавить товар в каталог сайта — напиши мне ID и название, я добавлю его на страницу магазина.
+      <div className="mt-4 p-4 rounded-xl" style={{ background: "rgba(0,208,128,0.07)", border: "1px solid rgba(0,208,128,0.15)" }}>
+        <p className="font-body text-green-400/70 text-xs leading-relaxed">
+          ✅ Товар сразу появится в каталоге магазина в выбранной игре.
         </p>
       </div>
     </div>
