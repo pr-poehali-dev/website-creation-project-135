@@ -75,7 +75,8 @@ def handler(event: dict, context) -> dict:
         cur.execute(f"SELECT value FROM {S()}.settings WHERE key = 'usd_rate' LIMIT 1")
         rate_row = cur.fetchone()
         usd_rate   = float(rate_row[0]) if rate_row else 90.0
-        amount_rub = round(float(price_usd) * usd_rate, 2)
+        import math
+        amount_rub = math.ceil(float(price_usd) * usd_rate)  # целые рубли, без копеек
 
         cur.execute(
             f"UPDATE {S()}.orders SET status = 'sbp_pending', usd_rate = %s WHERE id = %s",

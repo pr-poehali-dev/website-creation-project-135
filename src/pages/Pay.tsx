@@ -465,27 +465,38 @@ export default function Pay() {
             {/* Кнопки открытия банка */}
             <div className="px-5 pt-4 pb-2 flex flex-col gap-2">
               <p className="font-body text-white/40 text-xs mb-1">Быстрый переход в банк:</p>
-              {/* Сбербанк — deeplink */}
-              <button
-                onClick={() => {
-                  window.location.href = `sberbankonline://payment/transfer?phone=${sbpData.phone}&amount=${sbpData.amount_rub}&currency=RUB&comment=${encodeURIComponent(sbpData.comment)}`;
+              {/* Сбербанк — через НСПК с bank=100000000111 */}
+              <a
+                href={`https://www.sberbank.com/ru/person/dl/sberpay?phone=${sbpData.phone}&amount=${sbpData.amount_rub}&currency=RUB`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  // Пробуем sberpay://, при ошибке — открываем НСПК для Сбера
+                  const sberpay = `sberpay://transfer?phone=${sbpData.phone}&amount=${sbpData.amount_rub}`;
+                  const nspkSber = `https://qr.nspk.ru/pay?type=02&bank=100000000111&sum=${sbpData.amount_rub * 100}&cur=RUB&phone=${sbpData.phone}`;
+                  const iframe = document.createElement("iframe");
+                  iframe.style.display = "none";
+                  document.body.appendChild(iframe);
+                  iframe.src = sberpay;
+                  setTimeout(() => {
+                    document.body.removeChild(iframe);
+                    window.open(nspkSber, "_blank");
+                  }, 600);
                 }}
                 className="w-full py-3 rounded-xl font-body font-bold text-sm text-white flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95"
                 style={{ background: "linear-gradient(135deg, #1DB954, #0F7A35)" }}
               >
                 <span>🟢</span> Открыть Сбербанк
-              </button>
+              </a>
               {/* Любой банк через СБП НСПК */}
-              <button
-                onClick={() => {
-                  const url = `https://qr.nspk.ru/pay?type=02&bank=100000000111&sum=${sbpData.amount_rub * 100}&cur=RUB&name=${encodeURIComponent("CambeckSHOP")}&phone=${sbpData.phone}`;
-                  window.open(url, "_blank");
-                }}
+              <a
+                href={`https://qr.nspk.ru/pay?type=02&sum=${sbpData.amount_rub * 100}&cur=RUB&phone=${sbpData.phone}`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-full py-3 rounded-xl font-body font-bold text-sm text-white flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95"
                 style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}
               >
                 <span>🏦</span> Открыть другой банк (СБП)
-              </button>
+              </a>
             </div>
 
             {/* Кнопка подтверждения */}
