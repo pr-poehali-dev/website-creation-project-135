@@ -324,7 +324,6 @@ export default function Pay() {
                   <p className="font-display font-bold text-3xl" style={{ color: "#21BF73" }}>
                     {sbpData.amount_rub.toLocaleString("ru")} ₽
                   </p>
-                  <p className="font-body text-white/30 text-xs">${order.amount_usd.toFixed(2)}</p>
                 </div>
               </div>
             </div>

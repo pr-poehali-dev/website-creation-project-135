@@ -45,8 +45,24 @@ export default function BuyModal({ item, onClose }: Props) {
   }, []);
 
   const maxQty = Math.min(item.stock, 9999);
-  const totalUsd = (item.priceUsd * quantity).toFixed(2);
   const totalRub = Math.ceil(item.priceUsd * quantity * usdRate);
+
+  // СБП deeplink — открывает банковское приложение с предзаполненными реквизитами
+  function openSbpDeeplink(orderId: string) {
+    const comment = encodeURIComponent(`Заказ ${orderId.slice(0, 8).toUpperCase()}`);
+    const phone = "79181440716";
+    const amount = totalRub;
+    // Универсальная СБП-ссылка через НСПК (работает на iOS и Android)
+    const sbpUrl = `https://qr.nspk.ru/AS10006KVU4D3M?type=02&bank=100000000111&sum=${amount * 100}&cur=RUB&crc=AB6C`;
+    // Запасной вариант — прямая ссылка на Сбер
+    const sberUrl = `sberbankonline://payment/transfer?phone=${phone}&amount=${amount}&currency=RUB&comment=${comment}`;
+    // Пробуем открыть Сбер, если не сработает — открываем страницу с реквизитами
+    window.location.href = sberUrl;
+    setTimeout(() => {
+      // Если приложение не открылось — переходим на страницу оплаты
+      navigate(`/pay?order_id=${orderId}`);
+    }, 1500);
+  }
 
   async function payBySbp() {
     setLoading(true);
@@ -56,7 +72,7 @@ export default function BuyModal({ item, onClose }: Props) {
       if (token) headers["X-Auth-Token"] = token;
       let visitorId = localStorage.getItem("cambeck_visitor_id");
       if (!visitorId) { visitorId = Math.random().toString(36).slice(2) + Date.now(); localStorage.setItem("cambeck_visitor_id", visitorId); }
-      // Создаём заказ (сеть SBP — особый тип)
+      // Создаём заказ
       const res = await fetch(`${ORDERS_URL}?action=create`, {
         method: "POST",
         headers,
@@ -79,13 +95,14 @@ export default function BuyModal({ item, onClose }: Props) {
         amount_usd: data.amount_usd,
         created_at: new Date().toISOString(),
       }));
-      // Сразу инициируем СБП и идём на страницу оплаты
-      await fetch(`${SBP_URL}?action=create`, {
+      // Инициируем СБП-заказ в фоне
+      fetch(`${SBP_URL}?action=create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ order_id: data.order_id }),
       });
-      navigate(`/pay?order_id=${data.order_id}`);
+      // Открываем банковское приложение с предзаполненной суммой
+      openSbpDeeplink(data.order_id);
     } catch {
       setError("Ошибка соединения, попробуй ещё раз");
       setLoading(false);
@@ -205,13 +222,12 @@ export default function BuyModal({ item, onClose }: Props) {
 
           {/* Итого */}
           <div className="flex items-center justify-between px-4 py-3 rounded-xl"
-            style={{ background: "rgba(0,102,255,0.08)", border: "1px solid rgba(0,102,255,0.15)" }}>
-            <span className="font-body text-white/50 text-sm">Итого</span>
+            style={{ background: payMethod === "card" ? "rgba(33,191,115,0.08)" : "rgba(0,102,255,0.08)", border: `1px solid ${payMethod === "card" ? "rgba(33,191,115,0.2)" : "rgba(0,102,255,0.15)"}` }}>
+            <span className="font-body text-white/50 text-sm">К оплате</span>
             <div className="text-right">
-              <span className="font-display font-bold text-xl" style={{ color: "#4DA6FF" }}>
-                {totalRub} ₽
+              <span className="font-display font-bold text-2xl" style={{ color: payMethod === "card" ? "#21BF73" : "#4DA6FF" }}>
+                {payMethod === "card" || payMethod === null ? `${totalRub} ₽` : `${totalRub} ₽`}
               </span>
-              <span className="font-body text-white/30 text-xs ml-2">≈ ${totalUsd}</span>
             </div>
           </div>
 
@@ -248,7 +264,7 @@ export default function BuyModal({ item, onClose }: Props) {
                 <span className="text-xl">🔐</span>
                 <div className="flex-1">
                   <div className="font-body font-bold text-sm text-white">Криптовалюта</div>
-                  <div className="font-body text-xs text-white/40">LTC · USDT · SOL · ${totalUsd}</div>
+                  <div className="font-body text-xs text-white/40">LTC · USDT · SOL</div>
                 </div>
                 {payMethod === "crypto" && <span style={{ color: "#4DA6FF" }} className="text-lg">✓</span>}
               </button>
