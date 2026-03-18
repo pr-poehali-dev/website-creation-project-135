@@ -68,6 +68,14 @@ export default function Pay() {
     fetchRate(order.network);
   }, [order?.network]);
 
+  // Автозагрузка реквизитов СБП
+  useEffect(() => {
+    if (order?.network === "SBP" && !sbpData) {
+      setPayMethod("sbp");
+      openSbp();
+    }
+  }, [order?.order_id]);
+
   async function fetchRate(network: string) {
     const coinIds: Record<string, string> = { LTC: "litecoin", SOL: "solana" };
     const coinId = coinIds[network];
@@ -121,7 +129,10 @@ export default function Pay() {
       if (!data.error) {
         setOrder(data);
         if (data.status === "expired") setExpired(true);
-        if (data.status === "sbp_pending") setPayMethod("sbp");
+        // СБП-заказ — определяем по сети или статусу
+        if (data.status === "sbp_pending" || data.network === "SBP") {
+          setPayMethod("sbp");
+        }
       }
     } catch {
       // ignore
@@ -293,6 +304,15 @@ export default function Pay() {
       </div>
     </div>
   );
+
+  // ── Экран СБП — лоадер пока нет данных ───────────────────────────────────
+  if (payMethod === "sbp" && !sbpData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#0F1923" }}>
+        <div className="w-8 h-8 rounded-full border-2 border-green-500 border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   // ── Экран СБП ─────────────────────────────────────────────────────────────
   if (payMethod === "sbp" && sbpData) {
