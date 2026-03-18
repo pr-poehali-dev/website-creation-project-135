@@ -47,19 +47,12 @@ export default function BuyModal({ item, onClose }: Props) {
   const maxQty = Math.min(item.stock, 9999);
   const totalRub = Math.ceil(item.priceUsd * quantity * usdRate);
 
-  // СБП deeplink — открывает банковское приложение с предзаполненными реквизитами
+  // СБП deeplink — открывает Сбербанк, через 1.5с переходит на страницу с реквизитами
   function openSbpDeeplink(orderId: string) {
     const comment = encodeURIComponent(`Заказ ${orderId.slice(0, 8).toUpperCase()}`);
     const phone = "79181440716";
-    const amount = totalRub;
-    // Универсальная СБП-ссылка через НСПК (работает на iOS и Android)
-    const sbpUrl = `https://qr.nspk.ru/AS10006KVU4D3M?type=02&bank=100000000111&sum=${amount * 100}&cur=RUB&crc=AB6C`;
-    // Запасной вариант — прямая ссылка на Сбер
-    const sberUrl = `sberbankonline://payment/transfer?phone=${phone}&amount=${amount}&currency=RUB&comment=${comment}`;
-    // Пробуем открыть Сбер, если не сработает — открываем страницу с реквизитами
-    window.location.href = sberUrl;
+    window.location.href = `sberbankonline://payment/transfer?phone=${phone}&amount=${totalRub}&currency=RUB&comment=${comment}`;
     setTimeout(() => {
-      // Если приложение не открылось — переходим на страницу оплаты
       navigate(`/pay?order_id=${orderId}`);
     }, 1500);
   }
