@@ -30,9 +30,9 @@ type Account = { id: string; credentials: string; is_sold: boolean; sold_at: str
 type CatalogItemAdmin = { id: number; name: string; price_usd: number; stock: number; emoji: string; category: string; game: string; sort_order: number; image?: string | null };
 
 
-function NewItemForm({ token, onCreated, gamesList }: { token: string; onCreated: () => void; gamesList: { id: string; name: string }[] }) {
+function NewItemForm({ token, onCreated, gamesList, usdRate }: { token: string; onCreated: () => void; gamesList: { id: string; name: string }[]; usdRate: number }) {
   const [name, setName] = useState("");
-  const [priceUsd, setPriceUsd] = useState("");
+  const [priceRub, setPriceRub] = useState("");
   const [emoji, setEmoji] = useState("🎮");
   const [game, setGame] = useState(() => gamesList[0]?.id || "steal-a-brainrot");
   const [category, setCategory] = useState("lucky");
@@ -41,19 +41,21 @@ function NewItemForm({ token, onCreated, gamesList }: { token: string; onCreated
   const [msg, setMsg] = useState("");
 
   const accountLines = credentials.trim() ? credentials.trim().split("\n").filter(l => l.trim()).length : 0;
+  const priceUsdPreview = priceRub && usdRate ? (parseFloat(priceRub) / usdRate).toFixed(2) : null;
 
   async function handleSave() {
-    if (!name.trim() || !priceUsd.trim()) {
+    if (!name.trim() || !priceRub.trim()) {
       setMsg("❌ Заполни название и цену");
       return;
     }
     setSaving(true);
     setMsg("");
 
+    const priceUsd = parseFloat(priceRub) / usdRate;
     const catalogRes = await fetch(`${ORDERS_URL}?action=catalog_create`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Admin-Token": token },
-      body: JSON.stringify({ name: name.trim(), price_usd: parseFloat(priceUsd), emoji, game, category, sort_order: 0 }),
+      body: JSON.stringify({ name: name.trim(), price_usd: parseFloat(priceUsd.toFixed(2)), emoji, game, category, sort_order: 0 }),
     });
     const catalogData = await catalogRes.json();
     if (catalogData.error) { setMsg("❌ " + catalogData.error); setSaving(false); return; }
@@ -97,11 +99,16 @@ function NewItemForm({ token, onCreated, gamesList }: { token: string; onCreated
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="font-body text-white/50 text-xs mb-1.5 block">Цена ($)</label>
-            <input value={priceUsd} onChange={e => setPriceUsd(e.target.value)} placeholder="1.50"
-              type="number" step="0.01" min="0.01"
-              className="w-full px-3 py-2.5 rounded-xl font-body text-sm text-white outline-none"
-              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+            <label className="font-body text-white/50 text-xs mb-1.5 block">Цена (₽)</label>
+            <div className="relative">
+              <input value={priceRub} onChange={e => setPriceRub(e.target.value)} placeholder="150"
+                type="number" step="1" min="1"
+                className="w-full px-3 py-2.5 rounded-xl font-body text-sm text-white outline-none"
+                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+              {priceUsdPreview && (
+                <div className="mt-1 font-body text-white/30 text-xs">≈ ${priceUsdPreview}</div>
+              )}
+            </div>
           </div>
           <div>
             <label className="font-body text-white/50 text-xs mb-1.5 block">Игра</label>
@@ -227,7 +234,17 @@ export default function Admin() {
   const [savingPrice, setSavingPrice] = useState(false);
   const [priceMsg, setPriceMsg] = useState("");
 
+  const [usdRate, setUsdRate] = useState(90);
+
   const isAuthed = !!token;
+
+  async function fetchUsdRate() {
+    try {
+      const res = await fetch(`${ORDERS_URL}?action=usd_rate`);
+      const data = await res.json();
+      if (data.rate) setUsdRate(data.rate);
+    } catch (_) { /* ignore */ }
+  }
 
   async function fetchOnlineCount() {
     const res = await fetch(`${ONLINE_URL}?action=count`);
@@ -244,6 +261,7 @@ export default function Admin() {
     fetchCatalog();
     fetchGames();
     fetchOnlineCount();
+    fetchUsdRate();
     const interval = setInterval(() => { fetchChats(); fetchOrders(); fetchOnlineCount(); }, 5000);
     return () => clearInterval(interval);
   }, [isAuthed]);
@@ -675,7 +693,10 @@ export default function Admin() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-body font-bold text-white text-sm">{o.item_name} × {o.quantity}</p>
-                    <p className="font-display font-bold text-base mt-0.5" style={{ color: "#4DA6FF" }}>${o.amount_usd.toFixed(2)}</p>
+                    <p className="font-display font-bold text-base mt-0.5" style={{ color: "#4DA6FF" }}>
+                      {Math.round(o.amount_usd * usdRate)} ₽
+                      <span className="font-body text-xs text-white/30 ml-1">≈ ${o.amount_usd.toFixed(2)}</span>
+                    </p>
                     <p className="font-body text-white/30 text-xs mt-1">{o.network} • {new Date(o.created_at).toLocaleString("ru")}</p>
                     <p className="font-mono text-xs text-white/20 mt-0.5">#{o.order_id.slice(0,8).toUpperCase()}</p>
                   </div>
@@ -1111,10 +1132,12 @@ export default function Admin() {
                     style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
                 </div>
                 <div>
-                  <label className="font-body text-white/40 text-xs mb-1 block">Цена ($)</label>
-                  <input type="number" step="0.01" value={newItem.price_usd || 0} onChange={e => setNewItem(p => ({ ...p, price_usd: parseFloat(e.target.value) }))}
+                  <label className="font-body text-white/40 text-xs mb-1 block">Цена (₽)</label>
+                  <input type="number" step="1" value={newItem.price_usd ? Math.round(newItem.price_usd * usdRate) : 0}
+                    onChange={e => setNewItem(p => ({ ...p, price_usd: parseFloat((parseFloat(e.target.value) / usdRate).toFixed(2)) }))}
                     className="w-full px-3 py-2 rounded-xl font-body text-sm text-white outline-none"
                     style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }} />
+                  {newItem.price_usd ? <p className="font-body text-white/25 text-xs mt-0.5">≈ ${newItem.price_usd.toFixed(2)}</p> : null}
                 </div>
                 <div>
                   <label className="font-body text-white/40 text-xs mb-1 block">Эмодзи</label>
@@ -1208,11 +1231,16 @@ export default function Admin() {
                               <input value={editingItem.name} onChange={e => setEditingItem(p => p ? { ...p, name: e.target.value } : p)}
                                 className="col-span-2 px-2 py-1.5 rounded-lg font-body text-sm text-white outline-none"
                                 style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
-                              <div className="flex gap-1">
-                                <span className="font-body text-white/40 text-xs self-center">$</span>
-                                <input type="number" step="0.01" value={editingItem.price_usd} onChange={e => setEditingItem(p => p ? { ...p, price_usd: parseFloat(e.target.value) } : p)}
-                                  className="flex-1 px-2 py-1.5 rounded-lg font-body text-sm text-white outline-none"
-                                  style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
+                              <div className="flex flex-col gap-0.5">
+                                <div className="flex gap-1">
+                                  <span className="font-body text-white/40 text-xs self-center">₽</span>
+                                  <input type="number" step="1"
+                                    value={Math.round(editingItem.price_usd * usdRate)}
+                                    onChange={e => setEditingItem(p => p ? { ...p, price_usd: parseFloat((parseFloat(e.target.value) / usdRate).toFixed(2)) } : p)}
+                                    className="flex-1 px-2 py-1.5 rounded-lg font-body text-sm text-white outline-none"
+                                    style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
+                                </div>
+                                <span className="font-body text-white/25 text-xs pl-4">≈ ${editingItem.price_usd.toFixed(2)}</span>
                               </div>
                               <div className="flex gap-1">
                                 <span className="font-body text-white/40 text-xs self-center">шт</span>
@@ -1239,7 +1267,11 @@ export default function Admin() {
                             )}
                             <div className="flex-1 min-w-0">
                               <div className="font-body text-white text-sm truncate">{item.name}</div>
-                              <div className="font-body text-white/40 text-xs">${item.price_usd} · {item.stock} шт в наличии</div>
+                              <div className="font-body text-white/40 text-xs">
+                                <span style={{ color: "#4DA6FF" }}>{Math.round(item.price_usd * usdRate)} ₽</span>
+                                <span className="text-white/25"> · ${item.price_usd}</span>
+                                <span> · {item.stock} шт</span>
+                              </div>
                             </div>
                             <button onClick={() => setEditingItem({ ...item })}
                               className="px-3 py-1.5 rounded-lg font-body text-xs text-white/60 hover:text-white transition-colors"
