@@ -35,6 +35,7 @@ export default function BuyModal({ item, onClose }: Props) {
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [agreed, setAgreed] = useState(false);
   const [usdRate, setUsdRate] = useState(USD_TO_RUB_DEFAULT);
 
   useEffect(() => {
@@ -292,10 +293,52 @@ export default function BuyModal({ item, onClose }: Props) {
             <p className="font-body text-red-400 text-sm text-center">{error}</p>
           )}
 
+          {/* Согласие с офертой */}
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <div className="relative flex-shrink-0 mt-0.5">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={e => setAgreed(e.target.checked)}
+                className="sr-only"
+              />
+              <div
+                className="w-5 h-5 rounded-md flex items-center justify-center transition-all"
+                style={{
+                  background: agreed ? "#0066FF" : "rgba(255,255,255,0.07)",
+                  border: `2px solid ${agreed ? "#0066FF" : "rgba(255,255,255,0.2)"}`,
+                }}>
+                {agreed && <span className="text-white text-xs font-bold">✓</span>}
+              </div>
+            </div>
+            <span className="font-body text-white/50 text-xs leading-relaxed group-hover:text-white/70 transition-colors">
+              Я ознакомился(-ась) и принимаю условия{" "}
+              <a
+                href="/oferta"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                className="text-blue-400 hover:text-blue-300 underline underline-offset-2"
+              >
+                публичной оферты
+              </a>{" "}
+              и{" "}
+              <a
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                className="text-blue-400 hover:text-blue-300 underline underline-offset-2"
+              >
+                политики конфиденциальности
+              </a>
+            </span>
+          </label>
+
           {/* Кнопка оплаты */}
           <button
             onClick={payMethod === "card" ? payBySbp : payByCrypto}
-            disabled={loading || !payMethod || (payMethod === "crypto" && !network)}
+            disabled={loading || !payMethod || (payMethod === "crypto" && !network) || !agreed}
             className="w-full py-3.5 rounded-xl font-body font-bold text-white text-base disabled:opacity-40"
             style={{
               background: payMethod === "card"
