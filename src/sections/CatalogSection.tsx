@@ -11,7 +11,6 @@ export type CatalogItem = {
   priceUsd: number;
   stock: number;
   emoji: string;
-  category: "lucky" | "other";
   game: string;
   image?: string | null;
 };
@@ -33,19 +32,19 @@ export const GAMES: Game[] = [
 ];
 
 export const catalogItems: CatalogItem[] = [
-  { id: 1,  name: "Secret Lucky Block x10",          priceUsd: 1.70, stock: 0, emoji: "🎲", category: "lucky", game: "steal-a-brainrot" },
-  { id: 2,  name: "los Tacos Lucky Block 300m x10",  priceUsd: 1.20, stock: 0, emoji: "🌮", category: "lucky", game: "steal-a-brainrot" },
-  { id: 3,  name: "Heart Lucky Blocks x10",          priceUsd: 1.30, stock: 0, emoji: "❤️", category: "lucky", game: "steal-a-brainrot" },
-  { id: 4,  name: "Quesadilla Crocodila x10",        priceUsd: 1.90, stock: 0, emoji: "🐊", category: "lucky", game: "steal-a-brainrot" },
-  { id: 5,  name: "Burrito Bandito x10",             priceUsd: 1.90, stock: 0, emoji: "🌯", category: "lucky", game: "steal-a-brainrot" },
-  { id: 6,  name: "Los Quesadilla x10",              priceUsd: 1.80, stock: 0, emoji: "🧀", category: "lucky", game: "steal-a-brainrot" },
-  { id: 7,  name: "Chicleteira Bicicleteira x10",    priceUsd: 1.50, stock: 0, emoji: "🚲", category: "lucky", game: "steal-a-brainrot" },
-  { id: 8,  name: "67 x10",                          priceUsd: 2.50, stock: 0, emoji: "🎯", category: "lucky", game: "steal-a-brainrot" },
-  { id: 9,  name: "La Grande Combinasion x10",       priceUsd: 2.30, stock: 0, emoji: "✨", category: "lucky", game: "steal-a-brainrot" },
-  { id: 10, name: "Los Nooo My Hotsportsitos x10",   priceUsd: 2.50, stock: 0, emoji: "🌶️", category: "lucky", game: "steal-a-brainrot" },
-  { id: 11, name: "Random PACK SAB x10",             priceUsd: 0.50, stock: 0, emoji: "📦", category: "lucky", game: "steal-a-brainrot" },
-  { id: 12, name: "Divine Secret Lucky Block x10",   priceUsd: 6.00, stock: 0, emoji: "🔮", category: "lucky", game: "steal-a-brainrot" },
-  { id: 13, name: "Leprechaun Lucky Block x10",      priceUsd: 1.40, stock: 0, emoji: "🍀", category: "lucky", game: "steal-a-brainrot" },
+  { id: 1,  name: "Secret Lucky Block x10",          priceUsd: 1.70, stock: 0, emoji: "🎲", game: "steal-a-brainrot" },
+  { id: 2,  name: "los Tacos Lucky Block 300m x10",  priceUsd: 1.20, stock: 0, emoji: "🌮", game: "steal-a-brainrot" },
+  { id: 3,  name: "Heart Lucky Blocks x10",          priceUsd: 1.30, stock: 0, emoji: "❤️", game: "steal-a-brainrot" },
+  { id: 4,  name: "Quesadilla Crocodila x10",        priceUsd: 1.90, stock: 0, emoji: "🐊", game: "steal-a-brainrot" },
+  { id: 5,  name: "Burrito Bandito x10",             priceUsd: 1.90, stock: 0, emoji: "🌯", game: "steal-a-brainrot" },
+  { id: 6,  name: "Los Quesadilla x10",              priceUsd: 1.80, stock: 0, emoji: "🧀", game: "steal-a-brainrot" },
+  { id: 7,  name: "Chicleteira Bicicleteira x10",    priceUsd: 1.50, stock: 0, emoji: "🚲", game: "steal-a-brainrot" },
+  { id: 8,  name: "67 x10",                          priceUsd: 2.50, stock: 0, emoji: "🎯", game: "steal-a-brainrot" },
+  { id: 9,  name: "La Grande Combinasion x10",       priceUsd: 2.30, stock: 0, emoji: "✨", game: "steal-a-brainrot" },
+  { id: 10, name: "Los Nooo My Hotsportsitos x10",   priceUsd: 2.50, stock: 0, emoji: "🌶️", game: "steal-a-brainrot" },
+  { id: 11, name: "Random PACK SAB x10",             priceUsd: 0.50, stock: 0, emoji: "📦", game: "steal-a-brainrot" },
+  { id: 12, name: "Divine Secret Lucky Block x10",   priceUsd: 6.00, stock: 0, emoji: "🔮", game: "steal-a-brainrot" },
+  { id: 13, name: "Leprechaun Lucky Block x10",      priceUsd: 1.40, stock: 0, emoji: "🍀", game: "steal-a-brainrot" },
 ];
 
 function CatalogCard({ item, usdRate = USD_TO_RUB_DEFAULT }: { item: CatalogItem; usdRate?: number }) {

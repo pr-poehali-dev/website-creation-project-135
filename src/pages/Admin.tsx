@@ -27,7 +27,7 @@ type Message = { id: string; sender: string; text: string; created_at: string };
 type Order = { order_id: string; item_name: string; amount_usd: number; quantity: number; network: string; status: string; created_at: string; };
 type StockRow = { item_id: number; available: number; total: number };
 type Account = { id: string; credentials: string; is_sold: boolean; sold_at: string | null; created_at: string };
-type CatalogItemAdmin = { id: number; name: string; price_usd: number; stock: number; emoji: string; category: string; game: string; sort_order: number; image?: string | null };
+type CatalogItemAdmin = { id: number; name: string; price_usd: number; stock: number; emoji: string; game: string; sort_order: number; image?: string | null };
 
 
 function NewItemForm({ token, onCreated, gamesList, usdRate }: { token: string; onCreated: () => void; gamesList: { id: string; name: string }[]; usdRate: number }) {
@@ -35,7 +35,6 @@ function NewItemForm({ token, onCreated, gamesList, usdRate }: { token: string; 
   const [priceRub, setPriceRub] = useState("");
   const [emoji, setEmoji] = useState("🎮");
   const [game, setGame] = useState(() => gamesList[0]?.id || "steal-a-brainrot");
-  const [category, setCategory] = useState("lucky");
   const [credentials, setCredentials] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
@@ -55,7 +54,7 @@ function NewItemForm({ token, onCreated, gamesList, usdRate }: { token: string; 
     const catalogRes = await fetch(`${ORDERS_URL}?action=catalog_create`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Admin-Token": token },
-      body: JSON.stringify({ name: name.trim(), price_usd: parseFloat(priceUsd.toFixed(2)), emoji, game, category, sort_order: 0 }),
+      body: JSON.stringify({ name: name.trim(), price_usd: parseFloat(priceUsd.toFixed(2)), emoji, game, sort_order: 0 }),
     });
     const catalogData = await catalogRes.json();
     if (catalogData.error) { setMsg("❌ " + catalogData.error); setSaving(false); return; }
@@ -120,22 +119,7 @@ function NewItemForm({ token, onCreated, gamesList, usdRate }: { token: string; 
           </div>
         </div>
 
-        <div>
-          <label className="font-body text-white/50 text-xs mb-1.5 block">Категория</label>
-          <div className="flex gap-2">
-            {["lucky", "other"].map(cat => (
-              <button key={cat} onClick={() => setCategory(cat)}
-                className="px-4 py-2 rounded-xl font-body text-sm transition-all"
-                style={{
-                  background: category === cat ? "rgba(0,102,255,0.25)" : "rgba(255,255,255,0.05)",
-                  border: `1px solid ${category === cat ? "rgba(0,102,255,0.5)" : "rgba(255,255,255,0.1)"}`,
-                  color: category === cat ? "#4DA6FF" : "rgba(255,255,255,0.4)"
-                }}>
-                {cat === "lucky" ? "Lucky" : "Other"}
-              </button>
-            ))}
-          </div>
-        </div>
+
 
         <div>
           <div className="flex items-center justify-between mb-1.5">
@@ -195,7 +179,7 @@ export default function Admin() {
   const [catalogItems, setCatalogItems] = useState<CatalogItemAdmin[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [editingItem, setEditingItem] = useState<CatalogItemAdmin | null>(null);
-  const [newItem, setNewItem] = useState<Partial<CatalogItemAdmin>>({ name: "", price_usd: 0, emoji: "📦", category: "lucky", game: "steal-a-brainrot", sort_order: 0, image: null });
+  const [newItem, setNewItem] = useState<Partial<CatalogItemAdmin>>({ name: "", price_usd: 0, emoji: "📦", game: "steal-a-brainrot", sort_order: 0, image: null });
   const [showNewItemForm, setShowNewItemForm] = useState(false);
   const [catalogMsg, setCatalogMsg] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -1153,15 +1137,7 @@ export default function Admin() {
                     {games.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className="font-body text-white/40 text-xs mb-1 block">Категория</label>
-                  <select value={newItem.category || "lucky"} onChange={e => setNewItem(p => ({ ...p, category: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-xl font-body text-sm text-white outline-none"
-                    style={{ background: "#1e2a3a", border: "1px solid rgba(255,255,255,0.1)" }}>
-                    <option value="lucky">Lucky</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
+
                 <div>
                   <label className="font-body text-white/40 text-xs mb-1 block">Порядок (число)</label>
                   <input type="number" value={newItem.sort_order || 0} onChange={e => setNewItem(p => ({ ...p, sort_order: parseInt(e.target.value) }))}
