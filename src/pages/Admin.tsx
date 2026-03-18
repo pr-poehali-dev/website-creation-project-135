@@ -30,7 +30,7 @@ type Account = { id: string; credentials: string; is_sold: boolean; sold_at: str
 type CatalogItemAdmin = { id: number; name: string; price_usd: number; stock: number; emoji: string; game: string; sort_order: number; category?: string; image?: string | null };
 
 const GAME_CATEGORIES: Record<string, { id: string; label: string }[]> = {
-  "toilet-tower-defense": [
+  "ew": [
     { id: "units", label: "🗡️ Юниты" },
     { id: "currency", label: "💰 Валюта" },
   ],
@@ -178,9 +178,9 @@ export default function Admin() {
   const [loginVal, setLoginVal] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [tab, setTab] = useState<"chats" | "orders" | "stock" | "catalog">("chats");
+  const [tab, setTab] = useState<"chats" | "orders" | "stock" | "catalog">(() => (localStorage.getItem("admin_tab") as "chats" | "orders" | "stock" | "catalog") || "chats");
   const [onlineCount, setOnlineCount] = useState<number | null>(null);
-  const [catalogSubTab, setCatalogSubTab] = useState<"items" | "games">("items");
+  const [catalogSubTab, setCatalogSubTab] = useState<"items" | "games">(() => (localStorage.getItem("admin_catalog_subtab") as "items" | "games") || "items");
 
   // Catalog items
   const [catalogItems, setCatalogItems] = useState<CatalogItemAdmin[]>([]);
@@ -659,7 +659,7 @@ export default function Admin() {
             { id: "stock", label: "🗄️ Склад", count: null },
             { id: "catalog", label: "🛒 Каталог", count: null },
           ].map(t => (
-            <button key={t.id} onClick={() => setTab(t.id as "chats" | "orders" | "stock" | "catalog")}
+            <button key={t.id} onClick={() => { const v = t.id as "chats" | "orders" | "stock" | "catalog"; setTab(v); localStorage.setItem("admin_tab", v); }}
               className="px-3 py-1.5 rounded-lg font-body text-xs transition-all"
               style={{ background: tab === t.id ? "rgba(0,102,255,0.2)" : "transparent", color: tab === t.id ? "#4DA6FF" : "rgba(255,255,255,0.4)" }}>
               {t.label}{t.count !== null && t.count > 0 ? ` (${t.count})` : ""}
@@ -939,7 +939,7 @@ export default function Admin() {
           {/* Подвкладки */}
           <div className="flex gap-2 mb-5">
             {[{ id: "items", label: "📦 Товары" }, { id: "games", label: "🎮 Игры" }].map(st => (
-              <button key={st.id} onClick={() => setCatalogSubTab(st.id as "items" | "games")}
+              <button key={st.id} onClick={() => { const v = st.id as "items" | "games"; setCatalogSubTab(v); localStorage.setItem("admin_catalog_subtab", v); }}
                 className="px-4 py-2 rounded-xl font-body text-sm transition-all"
                 style={{ background: catalogSubTab === st.id ? "rgba(0,102,255,0.2)" : "rgba(255,255,255,0.05)", color: catalogSubTab === st.id ? "#4DA6FF" : "rgba(255,255,255,0.4)" }}>
                 {st.label}

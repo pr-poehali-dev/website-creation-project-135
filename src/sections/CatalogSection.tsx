@@ -108,7 +108,7 @@ type Props = {
 };
 
 const GAME_CATEGORIES: Record<string, { id: string; label: string }[]> = {
-  "toilet-tower-defense": [
+  "ew": [
     { id: "all", label: "Все" },
     { id: "currency", label: "💰 Валюта" },
     { id: "units", label: "🗡️ Юниты" },
