@@ -33,11 +33,12 @@ type CatalogItemAdmin = { id: number; name: string; price_usd: number; stock: nu
 
 
 
-function NewItemForm({ token, onCreated, gamesList, usdRate }: { token: string; onCreated: () => void; gamesList: { id: string; name: string }[]; usdRate: number }) {
+function NewItemForm({ token, onCreated, gamesList, usdRate, gameCategories }: { token: string; onCreated: () => void; gamesList: { id: string; name: string }[]; usdRate: number; gameCategories: Record<string, { id: string; label: string }[]> }) {
   const [name, setName] = useState("");
   const [priceRub, setPriceRub] = useState("");
   const [emoji, setEmoji] = useState("🎮");
   const [game, setGame] = useState(() => gamesList[0]?.id || "steal-a-brainrot");
+  const [category, setCategory] = useState("");
   const [credentials, setCredentials] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
@@ -57,7 +58,7 @@ function NewItemForm({ token, onCreated, gamesList, usdRate }: { token: string; 
     const catalogRes = await fetch(`${ORDERS_URL}?action=catalog_create`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Admin-Token": token },
-      body: JSON.stringify({ name: name.trim(), price_usd: parseFloat(priceUsd.toFixed(2)), emoji, game, sort_order: 0 }),
+      body: JSON.stringify({ name: name.trim(), price_usd: parseFloat(priceUsd.toFixed(2)), emoji, game, sort_order: 0, category: category || null }),
     });
     const catalogData = await catalogRes.json();
     if (catalogData.error) { setMsg("❌ " + catalogData.error); setSaving(false); return; }
@@ -114,7 +115,7 @@ function NewItemForm({ token, onCreated, gamesList, usdRate }: { token: string; 
           </div>
           <div>
             <label className="font-body text-white/50 text-xs mb-1.5 block">Игра</label>
-            <select value={game} onChange={e => setGame(e.target.value)}
+            <select value={game} onChange={e => { setGame(e.target.value); setCategory(""); }}
               className="w-full px-3 py-2.5 rounded-xl font-body text-sm text-white outline-none"
               style={{ background: "#1e2a3a", border: "1px solid rgba(255,255,255,0.1)" }}>
               {gamesList.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -122,7 +123,34 @@ function NewItemForm({ token, onCreated, gamesList, usdRate }: { token: string; 
           </div>
         </div>
 
-
+        {/* Категория — теги из игры */}
+        {(gameCategories[game] || []).length > 0 && (
+          <div>
+            <label className="font-body text-white/50 text-xs mb-2 block">Категория</label>
+            <div className="flex flex-wrap gap-2">
+              {(gameCategories[game] || []).map(cat => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setCategory(category === cat.id ? "" : cat.id)}
+                  className="px-3 py-1.5 rounded-xl font-body text-xs font-bold transition-all hover:scale-105"
+                  style={
+                    category === cat.id
+                      ? { background: "linear-gradient(135deg, #0066FF, #0044BB)", color: "#fff", border: "1px solid #0066FF" }
+                      : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.1)" }
+                  }
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+            {category && (
+              <button onClick={() => setCategory("")} className="mt-1.5 font-body text-white/25 text-xs hover:text-white/50 transition-colors">
+                ✕ Снять выбор
+              </button>
+            )}
+          </div>
+        )}
 
         <div>
           <div className="flex items-center justify-between mb-1.5">
@@ -977,7 +1005,7 @@ export default function Admin() {
               </div>
             ) : selectedItemId === -1 ? (
               /* Форма нового товара */
-              <NewItemForm token={token} onCreated={() => { fetchStockSummary(); setSelectedItemId(null); }} gamesList={games} />
+              <NewItemForm token={token} onCreated={() => { fetchStockSummary(); setSelectedItemId(null); }} gamesList={games} usdRate={usdRate} gameCategories={gameCategories} />
             ) : (
               <>
                 <div className="flex items-center justify-between mb-5">
