@@ -262,37 +262,23 @@ export default function Pay() {
               </div>
             )}
 
-            {needsChat && (
-              <div className="rounded-xl p-5 mb-5 text-left"
-                style={{ background: "rgba(0,102,255,0.08)", border: "1px solid rgba(0,102,255,0.25)" }}>
-                <p className="font-body text-blue-400 font-bold text-sm mb-2">💬 Продавец передаст товар через игру</p>
-                <p className="font-body text-white/50 text-sm mb-4">
-                  Ваш заказ оплачен. Продавец уже получил уведомление и свяжется в чате для передачи товара.
-                </p>
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => {
-                      localStorage.setItem("cambeck_open_chat", "1");
-                      navigate("/");
-                    }}
-                    className="w-full py-3 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
-                    style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}
-                  >
-                    💬 Открыть чат с продавцом
-                  </button>
-                  <button
-                    onClick={() => {
-                      localStorage.setItem("cambeck_open_chat_tab", "orders");
-                      navigate("/");
-                    }}
-                    className="w-full py-2.5 rounded-xl font-body font-bold text-sm text-white/60 hover:text-white transition-all"
-                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
-                  >
-                    📦 Мои заказы
-                  </button>
-                </div>
-              </div>
-            )}
+            <div className="flex flex-col gap-2 mb-5">
+              <button
+                onClick={() => navigate(`/order-chat/${order.order_id}`)}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
+                style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}
+              >
+                <Icon name="MessageCircle" size={16} />
+                Написать продавцу
+              </button>
+              <button
+                onClick={() => navigate("/profile")}
+                className="w-full py-2.5 rounded-xl font-body font-bold text-sm text-white/60 hover:text-white transition-all"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+              >
+                📦 Мои заказы
+              </button>
+            </div>
 
             {!needsChat && <p className="font-body text-white/30 text-xs mb-5">Сохрани данные — повторно они не будут показаны</p>}
             <a href="/"

@@ -73,16 +73,6 @@ export default function ChatWidget() {
   useEffect(() => {
     const saved = localStorage.getItem("cambeck_visitor_name");
     if (saved) { setVisitorName(saved); setNameEntered(true); }
-    if (localStorage.getItem("cambeck_open_chat") === "1") {
-      localStorage.removeItem("cambeck_open_chat");
-      setOpen(true);
-      setActiveTab("chat");
-    }
-    if (localStorage.getItem("cambeck_open_chat_tab") === "orders") {
-      localStorage.removeItem("cambeck_open_chat_tab");
-      setOpen(true);
-      setActiveTab("orders");
-    }
     // Загружаем незавершённый заказ
     const raw = localStorage.getItem("cambeck_pending_order");
     if (raw) {
