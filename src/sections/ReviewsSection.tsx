@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 
-const reviews = [
+const REVIEWS_URL = "https://functions.poehali.dev/6d55c460-602b-4d36-bc8f-a5fe5413ddd4";
+
+const staticReviews = [
   { name: "Danil-kolbasenko", text: "быстро", stars: 5, emoji: "⚡" },
   { name: "Nike_Roblox", text: "Спасибо 🙏", stars: 5, emoji: "👟" },
   { name: "ImDrocilXD", text: "Имба", stars: 5, emoji: "🔥" },
@@ -67,8 +69,35 @@ const reviews = [
   { name: "danyacelec", text: "👌", stars: 5, emoji: "👌" },
 ];
 
+const STAR_EMOJIS = ["😞","😕","😐","🙂","🤩"];
+
+type DbReview = { id: string; rating: number; text: string; username: string; item_name: string; created_at: string };
+
 export default function ReviewsSection() {
   const [reviewsExpanded, setReviewsExpanded] = useState(false);
+  const [dbReviews, setDbReviews] = useState<DbReview[]>([]);
+
+  useEffect(() => {
+    fetch(`${REVIEWS_URL}?action=list&limit=50`)
+      .then(r => r.json())
+      .then(d => { if (d.reviews) setDbReviews(d.reviews); })
+      .catch(() => {});
+  }, []);
+
+  const allReviews = [
+    ...dbReviews.map(r => ({
+      name: r.username,
+      text: r.text,
+      stars: r.rating,
+      emoji: STAR_EMOJIS[r.rating - 1] || "⭐",
+      item_name: r.item_name,
+      isReal: true,
+      created_at: r.created_at,
+    })),
+    ...staticReviews.map(r => ({ ...r, isReal: false, item_name: undefined, created_at: undefined })),
+  ];
+
+  const visibleReviews = reviewsExpanded ? allReviews : allReviews.slice(0, 6);
 
   return (
     <section id="Отзывы" className="py-20 px-4" style={{ background: "rgba(0,0,0,0.2)" }}>
@@ -80,18 +109,34 @@ export default function ReviewsSection() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
-          {(reviewsExpanded ? reviews : reviews.slice(0, 6)).map((r, i) => (
-            <div key={i} className="rounded-2xl p-5" style={{ background: "rgba(22, 31, 44, 0.9)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          {visibleReviews.map((r, i) => (
+            <div key={i} className="rounded-2xl p-5 relative"
+              style={{ background: "rgba(22, 31, 44, 0.9)", border: `1px solid ${r.isReal ? "rgba(255,184,0,0.15)" : "rgba(255,255,255,0.06)"}` }}>
+              {r.isReal && (
+                <div className="absolute top-3 right-3 px-1.5 py-0.5 rounded-md font-body text-xs font-bold"
+                  style={{ background: "rgba(255,184,0,0.15)", color: "#FFB800" }}>
+                  ✓ верифицирован
+                </div>
+              )}
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style={{ background: "rgba(0,102,255,0.15)" }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                  style={{ background: "rgba(0,102,255,0.15)" }}>
                   {r.emoji}
                 </div>
-                <div>
-                  <div className="font-body font-bold text-white text-sm">{r.name}</div>
+                <div className="min-w-0">
+                  <div className="font-body font-bold text-white text-sm truncate">{r.name}</div>
                   <div className="text-yellow-400 text-xs">{"★".repeat(r.stars)}</div>
                 </div>
               </div>
               <p className="font-body text-white/60 text-sm leading-relaxed">"{r.text}"</p>
+              {r.item_name && (
+                <p className="font-body text-white/25 text-xs mt-2 truncate">📦 {r.item_name}</p>
+              )}
+              {r.created_at && (
+                <p className="font-body text-white/20 text-xs mt-1">
+                  {new Date(r.created_at).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" })}
+                </p>
+              )}
             </div>
           ))}
         </div>
@@ -102,7 +147,7 @@ export default function ReviewsSection() {
               className="btn-shimmer inline-flex items-center gap-2 px-6 py-3 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
               style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
               <Icon name="ChevronDown" size={16} />
-              Показать все {reviews.length} отзывов
+              Показать все {allReviews.length} отзывов
             </button>
           </div>
         )}
