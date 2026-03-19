@@ -8,6 +8,21 @@ import requests
 
 ADMIN_TOKEN = "admin_Cambeck_token_cambeck"
 
+
+def send_telegram(text: str):
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
+    if not token or not chat_id:
+        return
+    try:
+        requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
+            timeout=5,
+        )
+    except Exception:
+        pass
+
 CRYPTO_ADDRESSES = {
     "LTC":      "ltc1qw6m0527yhuah7n72m7gad9acrdczzufhwcckk0",
     "USDT_BEP": "0x34d1701Cd8EA27B95Cdcf7cb21B5bbC9aFc68A39",
@@ -438,6 +453,13 @@ def handler(event: dict, context) -> dict:
                 chat_id = create_support_chat(cur, order_id, item_name, visitor_id, visitor_name)
                 conn.commit()
             conn.close()
+            send_telegram(
+                f"💰 <b>Новая оплата!</b>\n\n"
+                f"🛒 {item_name} × {quantity}\n"
+                f"💵 ${amount_usd:.2f} · {network}\n"
+                f"👤 {visitor_name}\n"
+                f"🔑 #{order_id[:8].upper()}"
+            )
             return ok({"status": "paid", "accounts": accounts, "chat_id": chat_id, "needs_chat": order_game != "steal-a-brainrot"})
 
         conn.close()
@@ -482,6 +504,11 @@ def handler(event: dict, context) -> dict:
             conn.commit()
 
         conn.close()
+        send_telegram(
+            f"✅ <b>Заказ подтверждён!</b>\n\n"
+            f"🛒 {item_name} × {row[3]}\n"
+            f"🔑 #{order_id[:8].upper()}"
+        )
         return ok({"success": True, "accounts_issued": len(accounts), "accounts": accounts, "chat_id": chat_id, "needs_chat": order_game != "steal-a-brainrot"})
 
     # GET list — заказы для admin

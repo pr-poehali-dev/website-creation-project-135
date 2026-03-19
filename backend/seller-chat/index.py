@@ -10,6 +10,22 @@ import psycopg2
 ADMIN_TOKEN = "admin_Cambeck_token_cambeck"
 
 
+def send_telegram(text: str):
+    import requests as req
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
+    if not token or not chat_id:
+        return
+    try:
+        req.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
+            timeout=5,
+        )
+    except Exception:
+        pass
+
+
 def get_conn():
     return psycopg2.connect(os.environ["DATABASE_URL"])
 
@@ -213,6 +229,13 @@ def handler(event: dict, context) -> dict:
                 return err("Нет доступа", 403)
             sender = "buyer"
 
+        # Получаем инфо о чате для уведомления
+        cur.execute(
+            f"SELECT username, order_id FROM {s}.seller_chats WHERE id = %s",
+            (chat_id,),
+        )
+        chat_info_row = cur.fetchone()
+
         cur.execute(
             f"INSERT INTO {s}.seller_messages (chat_id, sender, text) VALUES (%s, %s, %s) RETURNING id, created_at",
             (chat_id, sender, text),
@@ -224,6 +247,18 @@ def handler(event: dict, context) -> dict:
         )
         conn.commit()
         conn.close()
+
+        # Уведомление в Telegram только при сообщении от покупателя
+        if sender == "buyer" and chat_info_row:
+            username = chat_info_row[0]
+            order_id = str(chat_info_row[1])
+            send_telegram(
+                f"💬 <b>Новое сообщение от покупателя!</b>\n\n"
+                f"👤 {username}\n"
+                f"🔑 Заказ #{order_id[:8].upper()}\n\n"
+                f"<i>{text[:200]}</i>"
+            )
+
         return ok({"id": str(msg_row[0]), "created_at": msg_row[1], "sender": sender, "text": text})
 
     # GET chats — список чатов для продавца

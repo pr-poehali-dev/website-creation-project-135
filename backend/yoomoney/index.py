@@ -5,6 +5,22 @@
 import json
 import os
 import psycopg2
+import requests as _req
+
+
+def send_telegram(text: str):
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
+    if not token or not chat_id:
+        return
+    try:
+        _req.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
+            timeout=5,
+        )
+    except Exception:
+        pass
 
 CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
@@ -175,6 +191,11 @@ def handler(event: dict, context) -> dict:
 
         conn.commit()
         conn.close()
+        send_telegram(
+            f"💳 <b>СБП оплата подтверждена!</b>\n\n"
+            f"🛒 {item_name} × {qty}\n"
+            f"🔑 #{order_id[:8].upper()}"
+        )
         return ok({"success": True})
 
     # ── POST ?action=reject — админ отклоняет СБП-заказ ──────────────────────
