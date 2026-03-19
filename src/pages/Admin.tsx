@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import Icon from "@/components/ui/icon";
 
 const CHAT_URL = "https://functions.poehali.dev/5dc1e3a3-dd70-49b6-a971-dd798391a238";
+const SELLER_CHAT_URL = "https://functions.poehali.dev/6f29f896-2b7e-4b27-ad18-6f4da48ef96a";
 const ORDERS_URL = "https://functions.poehali.dev/f852d147-eae1-4265-a94d-63d014c42231";
 const SBP_URL = "https://functions.poehali.dev/42feca66-55a3-499c-b7b5-ea34fc0494ec";
 const ONLINE_URL = "https://functions.poehali.dev/2edf71d1-04dc-4be0-8481-958f413aed14";
@@ -198,14 +199,24 @@ export default function Admin() {
   const [newGame, setNewGame] = useState<Partial<GameAdmin>>({ id: "", name: "", image: "", description: "", badge: "", sort_order: 0, categories: [] });
   const [gamesMsg, setGamesMsg] = useState("");
 
-  // Chats
+  // Chats (поддержка)
   const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
-  const [chatSubTab, setChatSubTab] = useState<"support" | "order">("support");
+  const [chatSubTab, setChatSubTab] = useState<"support" | "order" | "seller">("support");
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Seller chats (покупатель ↔ продавец)
+  type SellerChat = { id: string; order_id: string; user_id: string; username: string; status: string; created_at: string; updated_at: string; last_message: string | null; unread: number };
+  type SellerMessage = { id: string; sender: "buyer" | "seller"; text: string; created_at: string; is_read: boolean };
+  const [sellerChats, setSellerChats] = useState<SellerChat[]>([]);
+  const [selectedSellerChat, setSelectedSellerChat] = useState<SellerChat | null>(null);
+  const [sellerMessages, setSellerMessages] = useState<SellerMessage[]>([]);
+  const [sellerReplyText, setSellerReplyText] = useState("");
+  const [sellerSending, setSellerSending] = useState(false);
+  const sellerBottomRef = useRef<HTMLDivElement>(null);
 
   // Orders
   const [orders, setOrders] = useState<Order[]>([]);
@@ -289,6 +300,7 @@ export default function Admin() {
   useEffect(() => {
     if (!isAuthed) return;
     fetchChats();
+    fetchSellerChats();
     fetchOrders();
     fetchStockSummary();
     fetchPrices();
@@ -297,21 +309,34 @@ export default function Admin() {
     fetchOnlineCount();
     fetchTotalVisits();
     fetchUsdRate();
-    const interval = setInterval(() => { fetchChats(); fetchOrders(); fetchOnlineCount(); }, 5000);
+    const interval = setInterval(() => { fetchChats(); fetchSellerChats(); fetchOrders(); fetchOnlineCount(); }, 4000);
     return () => clearInterval(interval);
   }, [isAuthed]);
 
   useEffect(() => {
     if (!selectedChat) return;
     fetchMessages(selectedChat.id);
-    const interval = setInterval(() => fetchMessages(selectedChat.id), 3000);
+    const interval = setInterval(() => fetchMessages(selectedChat.id), 2000);
     return () => clearInterval(interval);
   }, [selectedChat]);
 
   useEffect(() => {
+    if (!selectedSellerChat) return;
+    fetchSellerMessages(selectedSellerChat.id);
+    const interval = setInterval(() => fetchSellerMessages(selectedSellerChat.id), 2000);
+    return () => clearInterval(interval);
+  }, [selectedSellerChat]);
+
+  useEffect(() => {
+    sellerBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [sellerMessages]);
+
+  useEffect(() => {
     if (!isAuthed) return;
     setSelectedChat(null);
-    fetchChats(chatSubTab);
+    setSelectedSellerChat(null);
+    if (chatSubTab === "seller") fetchSellerChats();
+    else fetchChats(chatSubTab);
   }, [chatSubTab]);
 
   useEffect(() => {
@@ -348,6 +373,7 @@ export default function Admin() {
 
   async function fetchChats(chatType?: string) {
     const type = chatType || chatSubTab;
+    if (type === "seller") { fetchSellerChats(); return; }
     const res = await fetch(`${CHAT_URL}?action=chats&chat_type=${type}`, { headers: { "X-Admin-Token": token } });
     const data = await res.json();
     if (data.chats) setChats(data.chats);
@@ -380,6 +406,38 @@ export default function Admin() {
     });
     fetchChats();
     if (selectedChat?.id === chatId) setSelectedChat(null);
+  }
+
+  async function fetchSellerChats() {
+    const res = await fetch(`${SELLER_CHAT_URL}?action=chats`, { headers: { "X-Admin-Token": token } });
+    const data = await res.json();
+    if (data.chats) setSellerChats(data.chats);
+  }
+
+  async function fetchSellerMessages(chatId: string) {
+    const res = await fetch(`${SELLER_CHAT_URL}?action=messages&chat_id=${chatId}`, { headers: { "X-Admin-Token": token } });
+    const data = await res.json();
+    if (data.messages) {
+      setSellerMessages(data.messages);
+      // обновляем счётчик непрочитанных
+      setSellerChats(prev => prev.map(c => c.id === chatId ? { ...c, unread: 0 } : c));
+    }
+  }
+
+  async function sendSellerReply() {
+    if (!sellerReplyText.trim() || !selectedSellerChat || sellerSending) return;
+    setSellerSending(true);
+    const text = sellerReplyText.trim();
+    setSellerReplyText("");
+    // оптимистичное добавление
+    setSellerMessages(prev => [...prev, { id: "tmp_" + Date.now(), sender: "seller", text, created_at: new Date().toISOString(), is_read: false }]);
+    await fetch(`${SELLER_CHAT_URL}?action=send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+      body: JSON.stringify({ chat_id: selectedSellerChat.id, text }),
+    });
+    await fetchSellerMessages(selectedSellerChat.id);
+    setSellerSending(false);
   }
 
   async function fetchOrders() {
@@ -751,7 +809,7 @@ export default function Admin() {
         </div>
         <div className="flex items-center gap-1">
           {[
-            { id: "chats", label: "💬 Чаты", count: chats.filter(c => c.status === "open").length + 0 },
+            { id: "chats", label: "💬 Чаты", count: chats.filter(c => c.status === "open").length + sellerChats.reduce((s, c) => s + c.unread, 0) },
             { id: "orders", label: "📦 Заказы", count: orders.filter(o => o.status === "pending").length },
             { id: "stock", label: "🗄️ Склад", count: null },
             { id: "catalog", label: "🛒 Каталог", count: null },
@@ -1605,113 +1663,233 @@ export default function Admin() {
             {/* Подвкладки */}
             <div className="flex border-b border-white/5">
               {[
-                { id: "support", label: "💬 Поддержка" },
-                { id: "order",   label: "📦 Заказы" },
+                { id: "seller", label: "🛍️ Покупатели", badge: sellerChats.reduce((s, c) => s + c.unread, 0) },
+                { id: "support", label: "💬 Поддержка", badge: 0 },
+                { id: "order",   label: "📦 Заказы", badge: 0 },
               ].map(st => (
-                <button key={st.id} onClick={() => setChatSubTab(st.id as "support" | "order")}
-                  className="flex-1 py-3 font-body text-xs transition-all"
+                <button key={st.id} onClick={() => setChatSubTab(st.id as "support" | "order" | "seller")}
+                  className="flex-1 py-2.5 font-body text-xs transition-all relative"
                   style={{
                     background: chatSubTab === st.id ? "rgba(0,102,255,0.15)" : "transparent",
                     color: chatSubTab === st.id ? "#4DA6FF" : "rgba(255,255,255,0.35)",
                     borderBottom: chatSubTab === st.id ? "2px solid #0066FF" : "2px solid transparent",
                   }}>
                   {st.label}
-                </button>
-              ))}
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              {chats.length === 0 && (
-                <div className="text-center text-white/20 text-sm mt-12 px-4">
-                  {chatSubTab === "support" ? "Нет обращений" : "Нет заказных чатов"}
-                </div>
-              )}
-              {chats.map(chat => (
-                <button key={chat.id} onClick={() => { setSelectedChat(chat); fetchMessages(chat.id); }}
-                  className="w-full text-left px-4 py-3 border-b border-white/5 transition-all hover:bg-white/5"
-                  style={selectedChat?.id === chat.id ? { background: "rgba(0,102,255,0.1)" } : {}}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-body font-bold text-sm text-white truncate">{chat.visitor_name}</span>
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ml-2 ${chat.status === "open" ? "bg-green-400" : "bg-white/20"}`} />
-                  </div>
-                  {chat.chat_type === "order" && chat.order_id && (
-                    <p className="font-mono text-xs mb-1" style={{ color: "#FFB800" }}>
-                      📦 #{chat.order_id.slice(0, 8).toUpperCase()}
-                    </p>
+                  {st.badge > 0 && (
+                    <span className="absolute top-1 right-1 min-w-4 h-4 px-1 rounded-full text-xs font-bold flex items-center justify-center" style={{ background: "#E8343A", color: "#fff", fontSize: 10 }}>
+                      {st.badge}
+                    </span>
                   )}
-                  <p className="font-body text-xs text-white/40 truncate">{chat.last_message || "Нет сообщений"}</p>
-                  <p className="font-body text-xs text-white/20 mt-1">{timeAgo(chat.updated_at)}</p>
                 </button>
               ))}
             </div>
+
+            {/* Список: покупательские чаты */}
+            {chatSubTab === "seller" && (
+              <div className="flex-1 overflow-y-auto">
+                {sellerChats.length === 0 && (
+                  <div className="text-center text-white/20 text-sm mt-12 px-4">Нет диалогов</div>
+                )}
+                {sellerChats.map(chat => (
+                  <button key={chat.id} onClick={() => { setSelectedSellerChat(chat); fetchSellerMessages(chat.id); }}
+                    className="w-full text-left px-4 py-3 border-b border-white/5 transition-all hover:bg-white/5"
+                    style={selectedSellerChat?.id === chat.id ? { background: "rgba(0,102,255,0.1)" } : {}}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-body font-bold text-sm text-white truncate">{chat.username}</span>
+                      <div className="flex items-center gap-1.5">
+                        {chat.unread > 0 && (
+                          <span className="min-w-4 h-4 px-1 rounded-full text-xs font-bold flex items-center justify-center" style={{ background: "#E8343A", color: "#fff", fontSize: 10 }}>
+                            {chat.unread}
+                          </span>
+                        )}
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${chat.status === "open" ? "bg-green-400" : "bg-white/20"}`} />
+                      </div>
+                    </div>
+                    <p className="font-mono text-xs mb-1" style={{ color: "#FFB800" }}>
+                      Заказ #{chat.order_id.slice(0, 8).toUpperCase()}
+                    </p>
+                    <p className="font-body text-xs text-white/40 truncate">{chat.last_message || "Нет сообщений"}</p>
+                    <p className="font-body text-xs text-white/20 mt-1">{timeAgo(chat.updated_at)}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Список: чаты поддержки / заказов */}
+            {chatSubTab !== "seller" && (
+              <div className="flex-1 overflow-y-auto">
+                {chats.length === 0 && (
+                  <div className="text-center text-white/20 text-sm mt-12 px-4">
+                    {chatSubTab === "support" ? "Нет обращений" : "Нет заказных чатов"}
+                  </div>
+                )}
+                {chats.map(chat => (
+                  <button key={chat.id} onClick={() => { setSelectedChat(chat); fetchMessages(chat.id); }}
+                    className="w-full text-left px-4 py-3 border-b border-white/5 transition-all hover:bg-white/5"
+                    style={selectedChat?.id === chat.id ? { background: "rgba(0,102,255,0.1)" } : {}}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-body font-bold text-sm text-white truncate">{chat.visitor_name}</span>
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ml-2 ${chat.status === "open" ? "bg-green-400" : "bg-white/20"}`} />
+                    </div>
+                    {chat.chat_type === "order" && chat.order_id && (
+                      <p className="font-mono text-xs mb-1" style={{ color: "#FFB800" }}>
+                        📦 #{chat.order_id.slice(0, 8).toUpperCase()}
+                      </p>
+                    )}
+                    <p className="font-body text-xs text-white/40 truncate">{chat.last_message || "Нет сообщений"}</p>
+                    <p className="font-body text-xs text-white/20 mt-1">{timeAgo(chat.updated_at)}</p>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Переписка */}
           <div className="flex-1 flex flex-col overflow-hidden">
-            {!selectedChat ? (
-              <div className="flex flex-col items-center justify-center flex-1 text-white/20">
-                <Icon name="MessageCircle" size={48} />
-                <p className="font-body mt-3">Выберите чат слева</p>
-              </div>
-            ) : (
+
+            {/* === SELLER CHAT (покупатель ↔ продавец) === */}
+            {chatSubTab === "seller" && (
               <>
-                <div className="h-14 flex items-center justify-between px-5 border-b border-white/5 flex-shrink-0"
-                  style={{ background: "#161F2C" }}>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-body font-bold text-white">{selectedChat.visitor_name}</span>
-                      {selectedChat.chat_type === "order" && (
-                        <span className="px-1.5 py-0.5 rounded font-body font-bold text-xs" style={{ background: "rgba(255,184,0,0.15)", color: "#FFB800" }}>
-                          📦 Заказ
-                        </span>
-                      )}
-                      <span className={`text-xs font-body ${selectedChat.status === "open" ? "text-green-400" : "text-white/30"}`}>
-                        {selectedChat.status === "open" ? "• открыт" : "• закрыт"}
-                      </span>
-                    </div>
-                    {selectedChat.chat_type === "order" && selectedChat.order_id && (
-                      <p className="font-mono text-xs text-white/30 mt-0.5">#{selectedChat.order_id.slice(0, 8).toUpperCase()}</p>
-                    )}
+                {!selectedSellerChat ? (
+                  <div className="flex flex-col items-center justify-center flex-1 text-white/20">
+                    <Icon name="ShoppingBag" size={48} />
+                    <p className="font-body mt-3">Выберите диалог слева</p>
                   </div>
-                  {selectedChat.status === "open" && (
-                    <button onClick={() => closeChat(selectedChat.id)}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg font-body text-xs text-white/50 hover:text-red-400 transition-all hover:bg-red-400/10">
-                      <Icon name="X" size={13} />
-                      Закрыть
-                    </button>
-                  )}
-                </div>
-                <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-2">
-                  {messages.map(msg => (
-                    <div key={msg.id} className={`flex ${msg.sender === "admin" ? "justify-end" : "justify-start"}`}>
-                      <div className="max-w-[65%] px-4 py-2.5 font-body text-sm leading-relaxed"
-                        style={{
-                          background: msg.sender === "admin" ? "linear-gradient(135deg, #0066FF, #0044BB)" : "rgba(255,255,255,0.08)",
-                          color: "white",
-                          borderRadius: msg.sender === "admin" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-                        }}>
-                        {msg.text}
-                        <div className="text-xs mt-1 opacity-40">
-                          {new Date(msg.created_at).toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" })}
+                ) : (
+                  <>
+                    <div className="h-14 flex items-center justify-between px-5 border-b border-white/5 flex-shrink-0"
+                      style={{ background: "#161F2C" }}>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-body font-bold text-white">{selectedSellerChat.username}</span>
+                          <span className="px-1.5 py-0.5 rounded font-body font-bold text-xs" style={{ background: "rgba(255,184,0,0.15)", color: "#FFB800" }}>
+                            Заказ
+                          </span>
+                          <span className={`text-xs font-body ${selectedSellerChat.status === "open" ? "text-green-400" : "text-white/30"}`}>
+                            {selectedSellerChat.status === "open" ? "• открыт" : "• закрыт"}
+                          </span>
                         </div>
+                        <p className="font-mono text-xs text-white/30 mt-0.5">#{selectedSellerChat.order_id.slice(0, 8).toUpperCase()}</p>
                       </div>
                     </div>
-                  ))}
-                  <div ref={bottomRef} />
-                </div>
-                {selectedChat.status === "open" && (
-                  <div className="px-5 py-4 border-t border-white/5 flex gap-3 flex-shrink-0"
-                    style={{ background: "#161F2C" }}>
-                    <input className="flex-1 px-4 py-2.5 rounded-xl font-body text-sm text-white outline-none"
-                      style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
-                      placeholder="Ответить..." value={replyText}
-                      onChange={e => setReplyText(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && sendReply()} />
-                    <button onClick={sendReply} disabled={sending || !replyText.trim()}
-                      className="px-5 py-2.5 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105 disabled:opacity-40"
-                      style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
-                      <Icon name="Send" size={16} />
-                    </button>
+                    <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-1">
+                      {sellerMessages.length === 0 && (
+                        <div className="flex flex-col items-center justify-center h-full text-white/20 gap-2">
+                          <p className="font-body text-sm">Сообщений пока нет</p>
+                        </div>
+                      )}
+                      {sellerMessages.map(msg => (
+                        <div key={msg.id} className={`flex mb-1 ${msg.sender === "seller" ? "justify-end" : "justify-start"}`}>
+                          <div className="max-w-[65%] flex flex-col">
+                            <div className="px-4 py-2.5 font-body text-sm leading-relaxed"
+                              style={{
+                                background: msg.sender === "seller" ? "linear-gradient(135deg, #0066FF, #0044BB)" : "rgba(255,255,255,0.08)",
+                                color: "white",
+                                borderRadius: msg.sender === "seller" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                              }}>
+                              {msg.text}
+                            </div>
+                            <div className="flex items-center gap-1 px-1 mt-1">
+                              <span className="text-xs text-white/25">
+                                {new Date(msg.created_at).toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                              {msg.sender === "seller" && (
+                                <span className="text-white/25" style={{ fontSize: 11 }}>{msg.is_read ? "✓✓" : "✓"}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <div ref={sellerBottomRef} />
+                    </div>
+                    <div className="px-5 py-4 border-t border-white/5 flex gap-3 flex-shrink-0"
+                      style={{ background: "#161F2C" }}>
+                      <input className="flex-1 px-4 py-2.5 rounded-xl font-body text-sm text-white outline-none"
+                        style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
+                        placeholder="Ответить покупателю..." value={sellerReplyText}
+                        onChange={e => setSellerReplyText(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && sendSellerReply()} />
+                      <button onClick={sendSellerReply} disabled={sellerSending || !sellerReplyText.trim()}
+                        className="px-5 py-2.5 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105 disabled:opacity-40"
+                        style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
+                        <Icon name="Send" size={16} />
+                      </button>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            {/* === SUPPORT / ORDER CHATS === */}
+            {chatSubTab !== "seller" && (
+              <>
+                {!selectedChat ? (
+                  <div className="flex flex-col items-center justify-center flex-1 text-white/20">
+                    <Icon name="MessageCircle" size={48} />
+                    <p className="font-body mt-3">Выберите чат слева</p>
                   </div>
+                ) : (
+                  <>
+                    <div className="h-14 flex items-center justify-between px-5 border-b border-white/5 flex-shrink-0"
+                      style={{ background: "#161F2C" }}>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-body font-bold text-white">{selectedChat.visitor_name}</span>
+                          {selectedChat.chat_type === "order" && (
+                            <span className="px-1.5 py-0.5 rounded font-body font-bold text-xs" style={{ background: "rgba(255,184,0,0.15)", color: "#FFB800" }}>
+                              📦 Заказ
+                            </span>
+                          )}
+                          <span className={`text-xs font-body ${selectedChat.status === "open" ? "text-green-400" : "text-white/30"}`}>
+                            {selectedChat.status === "open" ? "• открыт" : "• закрыт"}
+                          </span>
+                        </div>
+                        {selectedChat.chat_type === "order" && selectedChat.order_id && (
+                          <p className="font-mono text-xs text-white/30 mt-0.5">#{selectedChat.order_id.slice(0, 8).toUpperCase()}</p>
+                        )}
+                      </div>
+                      {selectedChat.status === "open" && (
+                        <button onClick={() => closeChat(selectedChat.id)}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg font-body text-xs text-white/50 hover:text-red-400 transition-all hover:bg-red-400/10">
+                          <Icon name="X" size={13} />
+                          Закрыть
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-2">
+                      {messages.map(msg => (
+                        <div key={msg.id} className={`flex ${msg.sender === "admin" ? "justify-end" : "justify-start"}`}>
+                          <div className="max-w-[65%] px-4 py-2.5 font-body text-sm leading-relaxed"
+                            style={{
+                              background: msg.sender === "admin" ? "linear-gradient(135deg, #0066FF, #0044BB)" : "rgba(255,255,255,0.08)",
+                              color: "white",
+                              borderRadius: msg.sender === "admin" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                            }}>
+                            {msg.text}
+                            <div className="text-xs mt-1 opacity-40">
+                              {new Date(msg.created_at).toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" })}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <div ref={bottomRef} />
+                    </div>
+                    {selectedChat.status === "open" && (
+                      <div className="px-5 py-4 border-t border-white/5 flex gap-3 flex-shrink-0"
+                        style={{ background: "#161F2C" }}>
+                        <input className="flex-1 px-4 py-2.5 rounded-xl font-body text-sm text-white outline-none"
+                          style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
+                          placeholder="Ответить..." value={replyText}
+                          onChange={e => setReplyText(e.target.value)}
+                          onKeyDown={e => e.key === "Enter" && sendReply()} />
+                        <button onClick={sendReply} disabled={sending || !replyText.trim()}
+                          className="px-5 py-2.5 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105 disabled:opacity-40"
+                          style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
+                          <Icon name="Send" size={16} />
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             )}

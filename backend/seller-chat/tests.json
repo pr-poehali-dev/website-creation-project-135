@@ -1,0 +1,13 @@
+{
+  "tests": [
+    {
+      "name": "Get chats list as admin",
+      "method": "GET",
+      "path": "/?action=chats",
+      "headers": {"X-Admin-Token": "admin_Cambeck_token_cambeck"},
+      "expectedStatus": 200,
+      "expectedBody": {"chats": []},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

@@ -45,6 +45,7 @@ import Requisites from "./pages/Requisites";
 import Oferta from "./pages/Oferta";
 import Privacy from "./pages/Privacy";
 import ChatWidget from "./components/ChatWidget";
+import OrderChat from "./pages/OrderChat";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,7 @@ function AppRoutes() {
   const location = useLocation();
   const isAdmin = location.pathname === "/admin";
   const isPay = location.pathname === "/pay";
+  const isOrderChat = location.pathname.startsWith("/order-chat");
   return (
     <>
       <Routes>
@@ -66,10 +68,11 @@ function AppRoutes() {
         <Route path="/requisites" element={<Requisites />} />
         <Route path="/oferta" element={<Oferta />} />
         <Route path="/privacy" element={<Privacy />} />
+        <Route path="/order-chat/:orderId" element={<OrderChat />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
-      {!isAdmin && !isPay && <ChatWidget />}
+      {!isAdmin && !isPay && !isOrderChat && <ChatWidget />}
       <OnlinePing />
     </>
   );

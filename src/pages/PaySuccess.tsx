@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import Icon from "@/components/ui/icon";
 
@@ -8,6 +8,7 @@ const ORDERS_URL = "https://functions.poehali.dev/f852d147-eae1-4265-a94d-63d014
 export default function PaySuccess() {
   const [searchParams] = useSearchParams();
   const { refreshProfile } = useAuth();
+  const navigate = useNavigate();
   const [accounts, setAccounts] = useState<string[]>([]);
   const [itemName, setItemName] = useState("");
   const [loading, setLoading] = useState(true);
@@ -81,17 +82,28 @@ export default function PaySuccess() {
             Все покупки сохранены в твоём личном кабинете
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link to="/profile"
-              className="px-6 py-3 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
-              style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
-              Личный кабинет
-            </Link>
-            <Link to="/"
-              className="px-6 py-3 rounded-xl font-body font-bold text-sm transition-all hover:scale-105"
-              style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}>
-              В магазин
-            </Link>
+          <div className="flex flex-col gap-3">
+            {orderId && (
+              <button
+                onClick={() => navigate(`/order-chat/${orderId}`)}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
+                style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
+                <Icon name="MessageCircle" size={16} />
+                Написать продавцу
+              </button>
+            )}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link to="/profile"
+                className="flex-1 text-center px-6 py-3 rounded-xl font-body font-bold text-sm transition-all hover:scale-105"
+                style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                Мои заказы
+              </Link>
+              <Link to="/"
+                className="flex-1 text-center px-6 py-3 rounded-xl font-body font-bold text-sm transition-all hover:scale-105"
+                style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                В магазин
+              </Link>
+            </div>
           </div>
         </div>
       </div>

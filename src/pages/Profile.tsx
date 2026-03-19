@@ -256,18 +256,13 @@ export default function Profile() {
                     </div>
                     {o.status === "paid" && (
                       <div className="mt-3 pt-3 border-t border-white/5 flex items-center gap-2 flex-wrap">
-                        {!o.game?.includes("steal") && (
-                          <button
-                            onClick={() => {
-                              localStorage.setItem("cambeck_open_chat", "1");
-                              navigate("/");
-                            }}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg font-body font-bold text-sm text-white transition-all hover:scale-105"
-                            style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
-                            <Icon name="MessageCircle" size={14} />
-                            💬 Открыть чат
-                          </button>
-                        )}
+                        <button
+                          onClick={() => navigate(`/order-chat/${o.order_id}`)}
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg font-body font-bold text-sm text-white transition-all hover:scale-105"
+                          style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
+                          <Icon name="MessageCircle" size={14} />
+                          Написать продавцу
+                        </button>
                         {alreadyReviewed ? (
                           <span className="flex items-center gap-1.5 px-4 py-2 rounded-lg font-body text-sm"
                             style={{ color: "#00D080", background: "rgba(0,176,111,0.1)" }}>
