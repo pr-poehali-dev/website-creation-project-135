@@ -63,13 +63,19 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return ok({"count": count})
 
-    # GET total — всего уникальных визитов за всё время
+    # GET total — всего уникальных визитов за всё время + дата первого + кол-во регистраций
     if method == "GET" and action == "total":
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) FROM online_visitors")
-        total = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*), MIN(first_seen) FROM online_visitors")
+        row = cur.fetchone()
+        total = row[0]
+        first_seen = row[1].isoformat() if row[1] else None
+        cur.execute("SELECT COUNT(*), MIN(created_at) FROM users")
+        row2 = cur.fetchone()
+        registered = row2[0]
+        first_reg = row2[1].isoformat() if row2[1] else None
         conn.close()
-        return ok({"total": total})
+        return ok({"total": total, "first_seen": first_seen, "registered": registered, "first_reg": first_reg})
 
     return err("Неизвестный action", 404)

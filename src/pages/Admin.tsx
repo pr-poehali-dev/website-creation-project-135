@@ -176,6 +176,8 @@ export default function Admin() {
   const [tab, setTab] = useState<"chats" | "orders" | "stock" | "catalog">(() => (localStorage.getItem("admin_tab") as "chats" | "orders" | "stock" | "catalog") || "chats");
   const [onlineCount, setOnlineCount] = useState<number | null>(null);
   const [totalVisits, setTotalVisits] = useState<number | null>(null);
+  const [firstSeen, setFirstSeen] = useState<string | null>(null);
+  const [registeredCount, setRegisteredCount] = useState<number | null>(null);
   const [catalogSubTab, setCatalogSubTab] = useState<"items" | "games">(() => (localStorage.getItem("admin_catalog_subtab") as "items" | "games") || "items");
 
   // Catalog items
@@ -253,6 +255,8 @@ export default function Admin() {
     const res = await fetch(`${ONLINE_URL}?action=total`);
     const data = await res.json();
     if (typeof data.total === "number") setTotalVisits(data.total);
+    if (data.first_seen) setFirstSeen(data.first_seen);
+    if (typeof data.registered === "number") setRegisteredCount(data.registered);
   }
 
   useEffect(() => {
@@ -691,7 +695,7 @@ export default function Admin() {
               style={{ background: "linear-gradient(135deg, #0066FF, #E8343A)" }}>C</div>
             <span className="font-display font-bold text-white hidden sm:block">Cambeck<span style={{ color: "#FFB800" }}>SHOP</span></span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             {onlineCount !== null && (
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
                 style={{ background: "rgba(0,208,128,0.1)", border: "1px solid rgba(0,208,128,0.2)" }}>
@@ -702,8 +706,18 @@ export default function Admin() {
             {totalVisits !== null && (
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
                 style={{ background: "rgba(255,184,0,0.08)", border: "1px solid rgba(255,184,0,0.2)" }}>
-                <Icon name="Users" size={11} style={{ color: "#FFB800" }} />
-                <span className="font-body text-xs font-bold" style={{ color: "#FFB800" }}>{totalVisits.toLocaleString("ru-RU")} визитов</span>
+                <Icon name="Globe" size={11} style={{ color: "#FFB800" }} />
+                <span className="font-body text-xs font-bold" style={{ color: "#FFB800" }}>
+                  {totalVisits.toLocaleString("ru-RU")} визитов
+                  {firstSeen && <span className="font-normal opacity-60 ml-1">с {new Date(firstSeen).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}</span>}
+                </span>
+              </div>
+            )}
+            {registeredCount !== null && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
+                style={{ background: "rgba(102,0,255,0.1)", border: "1px solid rgba(102,0,255,0.25)" }}>
+                <Icon name="UserCheck" size={11} style={{ color: "#A855F7" }} />
+                <span className="font-body text-xs font-bold" style={{ color: "#A855F7" }}>{registeredCount} зарегистрировано</span>
               </div>
             )}
           </div>
