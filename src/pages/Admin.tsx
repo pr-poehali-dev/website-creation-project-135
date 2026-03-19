@@ -175,6 +175,7 @@ export default function Admin() {
   const [loginError, setLoginError] = useState("");
   const [tab, setTab] = useState<"chats" | "orders" | "stock" | "catalog">(() => (localStorage.getItem("admin_tab") as "chats" | "orders" | "stock" | "catalog") || "chats");
   const [onlineCount, setOnlineCount] = useState<number | null>(null);
+  const [totalVisits, setTotalVisits] = useState<number | null>(null);
   const [catalogSubTab, setCatalogSubTab] = useState<"items" | "games">(() => (localStorage.getItem("admin_catalog_subtab") as "items" | "games") || "items");
 
   // Catalog items
@@ -248,6 +249,12 @@ export default function Admin() {
     if (typeof data.count === "number") setOnlineCount(data.count);
   }
 
+  async function fetchTotalVisits() {
+    const res = await fetch(`${ONLINE_URL}?action=total`);
+    const data = await res.json();
+    if (typeof data.total === "number") setTotalVisits(data.total);
+  }
+
   useEffect(() => {
     if (!isAuthed) return;
     fetchChats();
@@ -257,6 +264,7 @@ export default function Admin() {
     fetchCatalog();
     fetchGames();
     fetchOnlineCount();
+    fetchTotalVisits();
     fetchUsdRate();
     const interval = setInterval(() => { fetchChats(); fetchOrders(); fetchOnlineCount(); }, 5000);
     return () => clearInterval(interval);
@@ -683,13 +691,22 @@ export default function Admin() {
               style={{ background: "linear-gradient(135deg, #0066FF, #E8343A)" }}>C</div>
             <span className="font-display font-bold text-white hidden sm:block">Cambeck<span style={{ color: "#FFB800" }}>SHOP</span></span>
           </div>
-          {onlineCount !== null && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
-              style={{ background: "rgba(0,208,128,0.1)", border: "1px solid rgba(0,208,128,0.2)" }}>
-              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#00D080" }} />
-              <span className="font-body text-xs font-bold" style={{ color: "#00D080" }}>{onlineCount} онлайн</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {onlineCount !== null && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
+                style={{ background: "rgba(0,208,128,0.1)", border: "1px solid rgba(0,208,128,0.2)" }}>
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#00D080" }} />
+                <span className="font-body text-xs font-bold" style={{ color: "#00D080" }}>{onlineCount} онлайн</span>
+              </div>
+            )}
+            {totalVisits !== null && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
+                style={{ background: "rgba(255,184,0,0.08)", border: "1px solid rgba(255,184,0,0.2)" }}>
+                <Icon name="Users" size={11} style={{ color: "#FFB800" }} />
+                <span className="font-body text-xs font-bold" style={{ color: "#FFB800" }}>{totalVisits.toLocaleString("ru-RU")} визитов</span>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-1">
           {[

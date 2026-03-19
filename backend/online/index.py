@@ -63,4 +63,13 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return ok({"count": count})
 
+    # GET total — всего уникальных визитов за всё время
+    if method == "GET" and action == "total":
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM online_visitors")
+        total = cur.fetchone()[0]
+        conn.close()
+        return ok({"total": total})
+
     return err("Неизвестный action", 404)

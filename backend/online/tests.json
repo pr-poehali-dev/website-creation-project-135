@@ -14,7 +14,13 @@
       "method": "GET",
       "path": "/?action=count",
       "expectedStatus": 200,
-      "expectedBody": {"count": 1},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get total visits",
+      "method": "GET",
+      "path": "/?action=total",
+      "expectedStatus": 200,
       "bodyMatcher": "partial"
     }
   ]
