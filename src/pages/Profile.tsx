@@ -87,6 +87,7 @@ export default function Profile() {
   const [reviewOrderId, setReviewOrderId] = useState<string | null>(null);
   const [reviewItemName, setReviewItemName] = useState("");
   const [reviewDone, setReviewDone] = useState<Set<string>>(new Set());
+  const [reviewedOrderIds, setReviewedOrderIds] = useState<Set<string>>(new Set());
   const [showThanks, setShowThanks] = useState(false);
 
   useEffect(() => {
@@ -94,8 +95,24 @@ export default function Profile() {
   }, [user, loading]);
 
   useEffect(() => {
-    if (user) refreshProfile();
-  }, []);
+    if (user) {
+      refreshProfile();
+      const token = localStorage.getItem("cambeck_token") || "";
+      fetch(`${REVIEWS_URL}?action=list&limit=200`)
+        .then(r => r.json())
+        .then(d => {
+          if (d.reviews && user) {
+            const myOrderIds = new Set(
+              (d.reviews as Array<{order_id: string, username: string}>)
+                .filter(r => orders.some(o => o.order_id === r.order_id))
+                .map(r => r.order_id)
+            );
+            setReviewedOrderIds(myOrderIds);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [user]);
 
   if (loading || !user) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: "#0F1923" }}>
@@ -223,7 +240,7 @@ export default function Profile() {
           ) : (
             <div className="flex flex-col gap-3">
               {orders.map(o => {
-                const alreadyReviewed = reviewDone.has(o.order_id);
+                const alreadyReviewed = reviewDone.has(o.order_id) || reviewedOrderIds.has(o.order_id);
                 return (
                   <div key={o.order_id} className="rounded-2xl p-4"
                     style={{ background: "#161F2C", border: `1px solid ${o.status === "paid" ? "rgba(0,176,111,0.2)" : "rgba(255,255,255,0.06)"}` }}>

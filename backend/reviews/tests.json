@@ -5,6 +5,7 @@
       "method": "GET",
       "path": "/?action=list",
       "expectedStatus": 200,
+      "expectedBody": {"reviews": []},
       "bodyMatcher": "partial"
     }
   ]

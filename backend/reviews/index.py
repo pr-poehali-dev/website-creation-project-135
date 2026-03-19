@@ -5,8 +5,13 @@ import json
 import os
 import psycopg2
 
+ADMIN_TOKEN = "admin_Cambeck_token_cambeck"
+
 def get_conn():
     return psycopg2.connect(os.environ["DATABASE_URL"])
+
+def get_schema():
+    return os.environ.get("MAIN_DB_SCHEMA", "public")
 
 def cors():
     return {
@@ -21,10 +26,10 @@ def ok(data):
 def err(msg, code=400):
     return {"statusCode": code, "headers": {**cors(), "Content-Type": "application/json"}, "body": json.dumps({"error": msg})}
 
-def get_user_by_token(cur, token):
-    cur.execute("""
-        SELECT u.id, u.username FROM users u
-        JOIN user_sessions s ON s.user_id = u.id
+def get_user_by_token(cur, token, schema):
+    cur.execute(f"""
+        SELECT u.id, u.username FROM {schema}.users u
+        JOIN {schema}.user_sessions s ON s.user_id = u.id
         WHERE s.token = %s AND s.expires_at > NOW()
     """, (token,))
     return cur.fetchone()
@@ -39,19 +44,20 @@ def handler(event: dict, context) -> dict:
     headers = event.get("headers") or {}
     auth_token = headers.get("X-Auth-Token") or headers.get("x-auth-token") or ""
     admin_token = headers.get("X-Admin-Token") or headers.get("x-admin-token") or ""
+    schema = get_schema()
 
     # GET list — публичный список видимых отзывов
     if method == "GET" and action == "list":
         limit = int(params.get("limit", 20))
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(f"""
             SELECT r.id, r.rating, r.text, r.created_at,
                    u.username, r.order_id,
                    o.item_name, o.game
-            FROM reviews r
-            JOIN users u ON u.id = r.user_id
-            JOIN orders o ON o.id = r.order_id
+            FROM {schema}.reviews r
+            JOIN {schema}.users u ON u.id = r.user_id
+            JOIN {schema}.orders o ON o.id = r.order_id
             WHERE r.is_visible = TRUE
             ORDER BY r.created_at DESC
             LIMIT %s
@@ -74,12 +80,12 @@ def handler(event: dict, context) -> dict:
             return err("Нет order_id")
         conn = get_conn()
         cur = conn.cursor()
-        user = get_user_by_token(cur, auth_token)
+        user = get_user_by_token(cur, auth_token, schema)
         if not user:
             conn.close()
             return err("Неверный токен", 401)
         user_id = user[0]
-        cur.execute("SELECT id, status FROM orders WHERE id = %s AND user_id = %s", (order_id, user_id))
+        cur.execute(f"SELECT id, status FROM {schema}.orders WHERE id = %s AND user_id = %s", (order_id, user_id))
         order = cur.fetchone()
         if not order:
             conn.close()
@@ -87,7 +93,7 @@ def handler(event: dict, context) -> dict:
         if order[1] != "paid":
             conn.close()
             return ok({"can_review": False, "reason": "order_not_paid"})
-        cur.execute("SELECT id FROM reviews WHERE order_id = %s AND user_id = %s", (order_id, user_id))
+        cur.execute(f"SELECT id FROM {schema}.reviews WHERE order_id = %s AND user_id = %s", (order_id, user_id))
         already = cur.fetchone()
         conn.close()
         return ok({"can_review": not already, "already_reviewed": bool(already)})
@@ -106,12 +112,12 @@ def handler(event: dict, context) -> dict:
             return err("Оценка должна быть от 1 до 5")
         conn = get_conn()
         cur = conn.cursor()
-        user = get_user_by_token(cur, auth_token)
+        user = get_user_by_token(cur, auth_token, schema)
         if not user:
             conn.close()
             return err("Неверный токен", 401)
         user_id = user[0]
-        cur.execute("SELECT id, status FROM orders WHERE id = %s AND user_id = %s", (order_id, user_id))
+        cur.execute(f"SELECT id, status FROM {schema}.orders WHERE id = %s AND user_id = %s", (order_id, user_id))
         order = cur.fetchone()
         if not order:
             conn.close()
@@ -119,12 +125,12 @@ def handler(event: dict, context) -> dict:
         if order[1] != "paid":
             conn.close()
             return err("Можно оставить отзыв только на оплаченный заказ")
-        cur.execute("SELECT id FROM reviews WHERE order_id = %s AND user_id = %s", (order_id, user_id))
+        cur.execute(f"SELECT id FROM {schema}.reviews WHERE order_id = %s AND user_id = %s", (order_id, user_id))
         if cur.fetchone():
             conn.close()
             return err("Отзыв уже оставлен")
-        cur.execute("""
-            INSERT INTO reviews (order_id, user_id, rating, text)
+        cur.execute(f"""
+            INSERT INTO {schema}.reviews (order_id, user_id, rating, text)
             VALUES (%s, %s, %s, %s) RETURNING id
         """, (order_id, user_id, rating, text))
         review_id = cur.fetchone()[0]
@@ -134,20 +140,16 @@ def handler(event: dict, context) -> dict:
 
     # GET admin_list — все отзывы для админа
     if method == "GET" and action == "admin_list":
-        if not admin_token:
-            return err("Нет токена", 401)
+        if admin_token != ADMIN_TOKEN:
+            return err("Нет доступа", 403)
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute("SELECT token FROM admin_tokens WHERE token = %s", (admin_token,))
-        if not cur.fetchone():
-            conn.close()
-            return err("Нет доступа", 403)
-        cur.execute("""
+        cur.execute(f"""
             SELECT r.id, r.rating, r.text, r.created_at, r.is_visible,
                    u.username, u.email, r.order_id, o.item_name, o.game
-            FROM reviews r
-            JOIN users u ON u.id = r.user_id
-            JOIN orders o ON o.id = r.order_id
+            FROM {schema}.reviews r
+            JOIN {schema}.users u ON u.id = r.user_id
+            JOIN {schema}.orders o ON o.id = r.order_id
             ORDER BY r.created_at DESC
         """)
         rows = cur.fetchall()
@@ -162,17 +164,13 @@ def handler(event: dict, context) -> dict:
 
     # POST toggle_visible — скрыть/показать отзыв (админ)
     if method == "POST" and action == "toggle_visible":
-        if not admin_token:
-            return err("Нет токена", 401)
+        if admin_token != ADMIN_TOKEN:
+            return err("Нет доступа", 403)
         body = json.loads(event.get("body") or "{}")
         review_id = body.get("review_id", "")
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute("SELECT token FROM admin_tokens WHERE token = %s", (admin_token,))
-        if not cur.fetchone():
-            conn.close()
-            return err("Нет доступа", 403)
-        cur.execute("UPDATE reviews SET is_visible = NOT is_visible WHERE id = %s RETURNING is_visible", (review_id,))
+        cur.execute(f"UPDATE {schema}.reviews SET is_visible = NOT is_visible WHERE id = %s RETURNING is_visible", (review_id,))
         row = cur.fetchone()
         if not row:
             conn.close()
