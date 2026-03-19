@@ -1529,19 +1529,29 @@ export default function Admin() {
                                   style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
                               </div>
                               {gameCategories[editingItem.game] && (
-                                <div className="col-span-2 sm:col-span-4 flex gap-2 flex-wrap">
-                                  <span className="font-body text-white/30 text-xs self-center">Категория:</span>
-                                  {gameCategories[editingItem.game].map(cat => (
-                                    <button key={cat.id} onClick={() => setEditingItem(p => p ? { ...p, category: cat.id } : p)}
-                                      className="px-3 py-1 rounded-lg font-body text-xs transition-all"
-                                      style={{
-                                        background: (editingItem.category || "units") === cat.id ? "rgba(0,102,255,0.25)" : "rgba(255,255,255,0.05)",
-                                        border: `1px solid ${(editingItem.category || "units") === cat.id ? "rgba(0,102,255,0.5)" : "rgba(255,255,255,0.1)"}`,
-                                        color: (editingItem.category || "units") === cat.id ? "#4DA6FF" : "rgba(255,255,255,0.4)"
-                                      }}>
-                                      {cat.label}
+                                <div className="col-span-2 sm:col-span-4 flex gap-2 flex-wrap items-center">
+                                  <span className="font-body text-white/30 text-xs">Категория:</span>
+                                  {gameCategories[editingItem.game].map(cat => {
+                                    const isActive = editingItem.category === cat.id;
+                                    return (
+                                      <button key={cat.id}
+                                        onClick={() => setEditingItem(p => p ? { ...p, category: isActive ? "" : cat.id } : p)}
+                                        className="px-3 py-1 rounded-lg font-body text-xs font-bold transition-all hover:scale-105"
+                                        style={{
+                                          background: isActive ? "linear-gradient(135deg, #0066FF, #0044BB)" : "rgba(255,255,255,0.07)",
+                                          border: `1px solid ${isActive ? "#0066FF" : "rgba(255,255,255,0.12)"}`,
+                                          color: isActive ? "#fff" : "rgba(255,255,255,0.5)"
+                                        }}>
+                                        {cat.label}
+                                      </button>
+                                    );
+                                  })}
+                                  {editingItem.category && (
+                                    <button onClick={() => setEditingItem(p => p ? { ...p, category: "" } : p)}
+                                      className="font-body text-white/25 text-xs hover:text-white/50 transition-colors">
+                                      ✕
                                     </button>
-                                  ))}
+                                  )}
                                 </div>
                               )}
                               <div className="col-span-2 sm:col-span-4 flex gap-2 mt-1">
