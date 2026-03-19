@@ -1778,28 +1778,44 @@ export default function Admin() {
                           <p className="font-body text-sm">Сообщений пока нет</p>
                         </div>
                       )}
-                      {sellerMessages.map(msg => (
-                        <div key={msg.id} className={`flex mb-1 ${msg.sender === "seller" ? "justify-end" : "justify-start"}`}>
-                          <div className="max-w-[65%] flex flex-col">
-                            <div className="px-4 py-2.5 font-body text-sm leading-relaxed"
-                              style={{
-                                background: msg.sender === "seller" ? "linear-gradient(135deg, #0066FF, #0044BB)" : "rgba(255,255,255,0.08)",
-                                color: "white",
-                                borderRadius: msg.sender === "seller" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-                              }}>
-                              {msg.text}
+                      {sellerMessages.map(msg => {
+                        if (msg.sender === "system") {
+                          const lines = msg.text.split("\n").filter(Boolean);
+                          return (
+                            <div key={msg.id} className="flex justify-center my-2">
+                              <div className="rounded-xl px-4 py-3 text-center"
+                                style={{ background: "rgba(0,176,111,0.1)", border: "1px solid rgba(0,176,111,0.2)" }}>
+                                <p className="font-body font-bold text-green-400 text-xs mb-1">{lines[0]}</p>
+                                {lines.slice(1).map((l: string, i: number) => (
+                                  <p key={i} className="font-body text-white/50 text-xs">{l}</p>
+                                ))}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1 px-1 mt-1">
-                              <span className="text-xs text-white/25">
-                                {new Date(msg.created_at).toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" })}
-                              </span>
-                              {msg.sender === "seller" && (
-                                <span className="text-white/25" style={{ fontSize: 11 }}>{msg.is_read ? "✓✓" : "✓"}</span>
-                              )}
+                          );
+                        }
+                        return (
+                          <div key={msg.id} className={`flex mb-1 ${msg.sender === "seller" ? "justify-end" : "justify-start"}`}>
+                            <div className="max-w-[65%] flex flex-col">
+                              <div className="px-4 py-2.5 font-body text-sm leading-relaxed"
+                                style={{
+                                  background: msg.sender === "seller" ? "linear-gradient(135deg, #0066FF, #0044BB)" : "rgba(255,255,255,0.08)",
+                                  color: "white",
+                                  borderRadius: msg.sender === "seller" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                                }}>
+                                {msg.text}
+                              </div>
+                              <div className="flex items-center gap-1 px-1 mt-1">
+                                <span className="text-xs text-white/25">
+                                  {new Date(msg.created_at).toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" })}
+                                </span>
+                                {msg.sender === "seller" && (
+                                  <span className="text-white/25" style={{ fontSize: 11 }}>{msg.is_read ? "✓✓" : "✓"}</span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                       <div ref={sellerBottomRef} />
                     </div>
                     <div className="px-5 py-4 border-t border-white/5 flex gap-3 flex-shrink-0"

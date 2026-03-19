@@ -9,7 +9,7 @@ const POLL_INTERVAL = 2000;
 
 interface Message {
   id: string;
-  sender: "buyer" | "seller";
+  sender: "buyer" | "seller" | "system";
   text: string;
   created_at: string;
   is_read: boolean;
@@ -243,6 +243,28 @@ export default function OrderChat() {
 
             {group.msgs.map((msg) => {
               const isBuyer = msg.sender === "buyer";
+              const isSystem = msg.sender === "system";
+
+              // Системное сообщение — карточка заказа
+              if (isSystem) {
+                const lines = msg.text.split("\n").filter(Boolean);
+                return (
+                  <div key={msg.id} className="flex justify-center my-3">
+                    <div
+                      className="rounded-2xl px-5 py-4 max-w-xs w-full text-center"
+                      style={{ background: "rgba(0,176,111,0.1)", border: "1px solid rgba(0,176,111,0.25)" }}
+                    >
+                      <div className="text-lg mb-1">✅</div>
+                      <p className="font-body font-bold text-green-400 text-sm mb-1">{lines[0]}</p>
+                      {lines.slice(1).map((l, i) => (
+                        <p key={i} className="font-body text-white/60 text-xs">{l}</p>
+                      ))}
+                      <p className="font-body text-white/25 text-xs mt-2">{formatTime(msg.created_at)}</p>
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <div
                   key={msg.id}

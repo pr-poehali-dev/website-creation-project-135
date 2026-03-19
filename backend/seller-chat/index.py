@@ -100,14 +100,18 @@ def handler(event: dict, context) -> dict:
             return err("Токен недействителен", 401)
         user_id, username = user
 
-        # Проверяем что заказ принадлежит пользователю
+        # Проверяем что заказ принадлежит пользователю, берём инфо о товаре
         cur.execute(
-            f"SELECT id FROM {s}.orders WHERE id = %s AND user_id = %s AND status = 'paid'",
+            f"SELECT id, item_name, quantity, price_usd FROM {s}.orders WHERE id = %s AND user_id = %s AND status = 'paid'",
             (order_id, user_id),
         )
-        if not cur.fetchone():
+        order_row = cur.fetchone()
+        if not order_row:
             conn.close()
             return err("Заказ не найден или не оплачен", 404)
+        item_name = order_row[1]
+        quantity = order_row[2]
+        price_usd = float(order_row[3])
 
         # Ищем существующий чат
         cur.execute(
@@ -123,6 +127,12 @@ def handler(event: dict, context) -> dict:
                 (order_id, user_id, username),
             )
             chat_id = cur.fetchone()[0]
+            # Системное сообщение о покупке
+            system_text = f"🛒 Заказ оплачен\n\n{item_name} × {quantity}\n#{order_id[:8].upper()}"
+            cur.execute(
+                f"INSERT INTO {s}.seller_messages (chat_id, sender, text) VALUES (%s, 'system', %s)",
+                (chat_id, system_text),
+            )
             conn.commit()
 
         conn.close()
