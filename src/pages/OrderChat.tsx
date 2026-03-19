@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import Icon from "@/components/ui/icon";
 
 const SELLER_CHAT_URL = "https://functions.poehali.dev/6f29f896-2b7e-4b27-ad18-6f4da48ef96a";
-const ORDERS_URL = "https://functions.poehali.dev/f852d147-eae1-4265-a94d-63d014c42231";
+const AUTH_URL = "https://functions.poehali.dev/4d9f59a5-cbc5-418a-bb2f-849af25b8236";
 const POLL_INTERVAL = 2000;
 
 interface Message {
@@ -46,13 +46,13 @@ export default function OrderChat() {
   // Загружаем инфо о заказе
   useEffect(() => {
     if (!orderId || !token) return;
-    fetch(`${ORDERS_URL}?action=my_orders`, {
+    fetch(`${AUTH_URL}?action=me`, {
       headers: { "X-Auth-Token": token },
     })
       .then((r) => r.json())
       .then((data) => {
-        const found = (data.orders || []).find((o: OrderInfo) => String(o.id) === orderId);
-        if (found) setOrder({ id: String(found.id), item_name: found.item_name, status: found.status });
+        const found = (data.orders || []).find((o: OrderInfo) => String(o.order_id) === orderId || String(o.id) === orderId);
+        if (found) setOrder({ id: String(found.order_id || found.id), item_name: found.item_name, status: found.status });
       });
   }, [orderId, token]);
 
