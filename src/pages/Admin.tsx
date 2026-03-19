@@ -1241,7 +1241,9 @@ export default function Admin() {
                                     onChange={e => setEditingGame(p => {
                                       if (!p) return p;
                                       const cats = [...(p.categories || [])];
-                                      cats[idx] = { ...cats[idx], label: e.target.value };
+                                      // Автогенерируем id из label если id пустой
+                                      const autoId = cats[idx].id || e.target.value.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20) || `cat${idx}`;
+                                      cats[idx] = { ...cats[idx], label: e.target.value, id: cats[idx].id || autoId };
                                       return { ...p, categories: cats };
                                     })}
                                     placeholder="🗡️ Юниты"
@@ -1252,12 +1254,15 @@ export default function Admin() {
                                     onChange={e => setEditingGame(p => {
                                       if (!p) return p;
                                       const cats = [...(p.categories || [])];
-                                      cats[idx] = { ...cats[idx], id: e.target.value };
+                                      cats[idx] = { ...cats[idx], id: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, "") };
                                       return { ...p, categories: cats };
                                     })}
                                     placeholder="units"
                                     className="w-28 px-3 py-1.5 rounded-lg font-mono text-xs text-white outline-none"
-                                    style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }} />
+                                    style={{
+                                      background: "rgba(255,255,255,0.07)",
+                                      border: `1px solid ${cat.id ? "rgba(0,208,128,0.3)" : "rgba(232,52,58,0.4)"}`,
+                                    }} />
                                   <button
                                     onClick={() => setEditingGame(p => {
                                       if (!p) return p;
@@ -1269,12 +1274,16 @@ export default function Admin() {
                                 </div>
                               ))}
                               <button
-                                onClick={() => setEditingGame(p => p ? { ...p, categories: [...(p.categories || []), { id: "", label: "" }] } : p)}
+                                onClick={() => setEditingGame(p => {
+                                  if (!p) return p;
+                                  const idx = (p.categories || []).length;
+                                  return { ...p, categories: [...(p.categories || []), { id: `cat${idx}`, label: "" }] };
+                                })}
                                 className="px-3 py-1.5 rounded-lg font-body text-xs text-white/50 hover:text-white transition-colors self-start"
                                 style={{ background: "rgba(255,255,255,0.05)", border: "1px dashed rgba(255,255,255,0.15)" }}>
                                 + Добавить категорию
                               </button>
-                              <p className="font-body text-white/25 text-xs">Слева — название (с эмодзи), справа — ID (латиница)</p>
+                              <p className="font-body text-white/25 text-xs">Слева — название, справа — уникальный ID (только латиница)</p>
                             </div>
                           </div>
                         </div>
