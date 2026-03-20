@@ -202,7 +202,7 @@ export default function Admin() {
   const [loginVal, setLoginVal] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [tab, setTab] = useState<"chats" | "orders" | "stock" | "catalog" | "reviews">(() => (localStorage.getItem("admin_tab") as "chats" | "orders" | "stock" | "catalog" | "reviews") || "chats");
+  const [tab, setTab] = useState<"chats" | "orders" | "stock" | "catalog">(() => (localStorage.getItem("admin_tab") as "chats" | "orders" | "stock" | "catalog") || "chats");
   const [onlineCount, setOnlineCount] = useState<number | null>(null);
   const [totalVisits, setTotalVisits] = useState<number | null>(null);
   const [firstSeen, setFirstSeen] = useState<string | null>(null);
@@ -270,11 +270,6 @@ export default function Admin() {
   const [inlineStockSaving, setInlineStockSaving] = useState(false);
   const [inlineStockMsg, setInlineStockMsg] = useState("");
 
-  // Reviews
-  type AdminReview = { id: string; rating: number; text: string; created_at: string; is_visible: boolean; username: string; email: string; order_id: string; item_name: string; game: string };
-  const [adminReviews, setAdminReviews] = useState<AdminReview[]>([]);
-  const [reviewsLoading, setReviewsLoading] = useState(false);
-
   const isAuthed = !!token;
 
   // Динамические категории из данных игр
@@ -301,28 +296,6 @@ export default function Admin() {
     if (typeof data.total === "number") setTotalVisits(data.total);
     if (data.first_seen) setFirstSeen(data.first_seen);
     if (typeof data.registered === "number") setRegisteredCount(data.registered);
-  }
-
-  async function fetchAdminReviews() {
-    setReviewsLoading(true);
-    const res = await fetch(`${ONLINE_URL.replace("2edf71d1-04dc-4be0-8481-958f413aed14", "6d55c460-602b-4d36-bc8f-a5fe5413ddd4")}?action=admin_list`, {
-      headers: { "X-Admin-Token": token },
-    });
-    const data = await res.json();
-    if (data.reviews) setAdminReviews(data.reviews);
-    setReviewsLoading(false);
-  }
-
-  async function toggleReviewVisible(reviewId: string) {
-    const res = await fetch(`${ONLINE_URL.replace("2edf71d1-04dc-4be0-8481-958f413aed14", "6d55c460-602b-4d36-bc8f-a5fe5413ddd4")}?action=toggle_visible`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Admin-Token": token },
-      body: JSON.stringify({ review_id: reviewId }),
-    });
-    const data = await res.json();
-    if (data.ok) {
-      setAdminReviews(prev => prev.map(r => r.id === reviewId ? { ...r, is_visible: data.is_visible } : r));
-    }
   }
 
   useEffect(() => {
@@ -841,9 +814,8 @@ export default function Admin() {
             { id: "orders", label: "📦 Заказы", count: orders.filter(o => o.status === "pending").length },
             { id: "stock", label: "🗄️ Склад", count: null },
             { id: "catalog", label: "🛒 Каталог", count: null },
-            { id: "reviews", label: "⭐ Отзывы", count: null },
           ].map(t => (
-            <button key={t.id} onClick={() => { const v = t.id as "chats" | "orders" | "stock" | "catalog" | "reviews"; setTab(v); localStorage.setItem("admin_tab", v); if (v === "reviews") fetchAdminReviews(); }}
+            <button key={t.id} onClick={() => { const v = t.id as "chats" | "orders" | "stock" | "catalog"; setTab(v); localStorage.setItem("admin_tab", v); }}
               className="px-3 py-1.5 rounded-lg font-body text-xs transition-all"
               style={{ background: tab === t.id ? "rgba(0,102,255,0.2)" : "transparent", color: tab === t.id ? "#4DA6FF" : "rgba(255,255,255,0.4)" }}>
               {t.label}{t.count !== null && t.count > 0 ? ` (${t.count})` : ""}
@@ -1960,62 +1932,7 @@ export default function Admin() {
         </div>
       )}
 
-      {/* REVIEWS TAB */}
-      {tab === "reviews" && (
-        <div className="p-5 max-w-5xl mx-auto">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="font-display font-bold text-white text-lg">⭐ Отзывы покупателей</h2>
-            <button onClick={fetchAdminReviews}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105"
-              style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
-              <Icon name="RefreshCw" size={14} />
-              Обновить
-            </button>
-          </div>
-          {reviewsLoading ? (
-            <div className="flex justify-center py-16">
-              <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
-            </div>
-          ) : adminReviews.length === 0 ? (
-            <div className="rounded-2xl p-12 text-center" style={{ background: "#161F2C", border: "1px solid rgba(255,255,255,0.06)" }}>
-              <div className="text-4xl mb-3">⭐</div>
-              <p className="font-body text-white/40 text-sm">Отзывов пока нет</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {adminReviews.map(r => (
-                <div key={r.id} className="rounded-2xl p-4"
-                  style={{ background: "#161F2C", border: `1px solid ${r.is_visible ? "rgba(255,184,0,0.15)" : "rgba(255,255,255,0.06)"}`, opacity: r.is_visible ? 1 : 0.5 }}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="font-body font-bold text-white text-sm">{r.username}</span>
-                        <span className="font-body text-white/40 text-xs">{r.email}</span>
-                        <span className="text-yellow-400 text-xs">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
-                        <span className="px-2 py-0.5 rounded-md font-body text-xs"
-                          style={{ background: r.is_visible ? "rgba(0,208,128,0.1)" : "rgba(255,255,255,0.05)", color: r.is_visible ? "#00D080" : "rgba(255,255,255,0.3)" }}>
-                          {r.is_visible ? "Виден" : "Скрыт"}
-                        </span>
-                      </div>
-                      <p className="font-body text-white/70 text-sm mb-2">"{r.text}"</p>
-                      <div className="flex items-center gap-3 text-white/30 text-xs">
-                        <span>📦 {r.item_name}</span>
-                        <span>{new Date(r.created_at).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" })}</span>
-                      </div>
-                    </div>
-                    <button onClick={() => toggleReviewVisible(r.id)}
-                      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-body text-xs transition-all hover:scale-105"
-                      style={{ background: r.is_visible ? "rgba(255,60,60,0.1)" : "rgba(0,208,128,0.1)", color: r.is_visible ? "#FF6B6B" : "#00D080" }}>
-                      <Icon name={r.is_visible ? "EyeOff" : "Eye"} size={13} />
-                      {r.is_visible ? "Скрыть" : "Показать"}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+
     </div>
   );
 }

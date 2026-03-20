@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import HeroSection from "@/sections/HeroSection";
 import CatalogSection, { CatalogItem, Game, GAMES, catalogItems } from "@/sections/CatalogSection";
-import ReviewsSection from "@/sections/ReviewsSection";
 import SupportSection from "@/sections/SupportSection";
 
 const ORDERS_URL = "https://functions.poehali.dev/f852d147-eae1-4265-a94d-63d014c42231";
@@ -12,7 +11,6 @@ export default function Index() {
   const { user } = useAuth();
   const [activeSection, setActiveSection] = useState("Главная");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [supportModalOpen, setSupportModalOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [dbPrices, setDbPrices] = useState<Record<string, number>>({});
@@ -103,7 +101,6 @@ export default function Index() {
         user={user}
         onScrollTo={scrollTo}
         onToggleMobile={() => setMobileMenuOpen(v => !v)}
-        onOpenReviews={() => setReviewModalOpen(true)}
       />
 
       <CatalogSection
@@ -117,14 +114,10 @@ export default function Index() {
         onOpenSupport={() => setSupportModalOpen(true)}
       />
 
-      <ReviewsSection />
-
       <SupportSection
         onOpenSupport={() => setSupportModalOpen(true)}
         onScrollTo={scrollTo}
-        reviewModalOpen={reviewModalOpen}
         supportModalOpen={supportModalOpen}
-        onCloseReviews={() => setReviewModalOpen(false)}
         onCloseSupport={() => setSupportModalOpen(false)}
       />
 

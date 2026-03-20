@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 const HERO_IMG = "https://cdn.poehali.dev/projects/55eebfd7-5c19-4adf-ae5d-100fe458b847/files/063fb226-d199-4cc0-8b87-e4836625f644.jpg";
 
-const sections = ["Главная", "Каталог", "Отзывы", "Поддержка"];
+const sections = ["Главная", "Каталог", "Поддержка"];
 
 type Props = {
   loaded: boolean;
@@ -12,10 +12,9 @@ type Props = {
   user: { username: string } | null;
   onScrollTo: (id: string) => void;
   onToggleMobile: () => void;
-  onOpenReviews: () => void;
 };
 
-export default function HeroSection({ loaded, activeSection, mobileMenuOpen, user, onScrollTo, onToggleMobile, onOpenReviews }: Props) {
+export default function HeroSection({ loaded, activeSection, mobileMenuOpen, user, onScrollTo, onToggleMobile }: Props) {
   return (
     <>
       {/* ---- NAVBAR ---- */}
@@ -168,11 +167,7 @@ export default function HeroSection({ loaded, activeSection, mobileMenuOpen, use
               style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
               🛒 Перейти в каталог
             </button>
-            <button onClick={onOpenReviews}
-              className="w-full sm:w-auto px-8 py-4 rounded-2xl font-body font-bold text-lg transition-all hover:scale-105"
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.8)" }}>
-              ⭐ Наши отзывы
-            </button>
+
           </div>
 
           <div className={`mt-16 grid grid-cols-3 gap-4 max-w-md mx-auto transition-all duration-700 delay-500 ${loaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>

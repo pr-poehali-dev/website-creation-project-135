@@ -7,111 +7,18 @@ const NETWORK_LABELS: Record<string, string> = {
   LTC: "LTC", USDT_BEP: "USDT BEP20", USDT_TRC: "USDT TRC20", SOL: "SOL",
 };
 
-const REVIEWS_URL = "https://functions.poehali.dev/6d55c460-602b-4d36-bc8f-a5fe5413ddd4";
-
-function ReviewModal({ orderId, itemName, token, onClose, onDone }: {
-  orderId: string; itemName: string; token: string; onClose: () => void; onDone: () => void;
-}) {
-  const [rating, setRating] = useState(5);
-  const [text, setText] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  async function submit() {
-    if (!text.trim()) { setError("Напиши хотя бы пару слов 🙂"); return; }
-    setSaving(true);
-    setError("");
-    const res = await fetch(`${REVIEWS_URL}?action=create`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Auth-Token": token },
-      body: JSON.stringify({ order_id: orderId, rating, text: text.trim() }),
-    });
-    const data = await res.json();
-    if (data.error) { setError(data.error); setSaving(false); return; }
-    onDone();
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-      <div className="w-full max-w-md rounded-2xl p-6" style={{ background: "#161F2C", border: "1px solid rgba(255,255,255,0.1)" }}>
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="font-display font-bold text-white text-lg">⭐ Оставить отзыв</h3>
-          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors">
-            <Icon name="X" size={20} />
-          </button>
-        </div>
-        <p className="font-body text-white/50 text-sm mb-5 truncate">Заказ: <span className="text-white/80">{itemName}</span></p>
-
-        {/* Звёзды */}
-        <div className="mb-4">
-          <p className="font-body text-white/50 text-xs mb-2">Оценка</p>
-          <div className="flex gap-2">
-            {[1,2,3,4,5].map(s => (
-              <button key={s} onClick={() => setRating(s)}
-                className="text-2xl transition-transform hover:scale-110"
-                style={{ color: s <= rating ? "#FFB800" : "rgba(255,255,255,0.2)" }}>
-                ★
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Текст */}
-        <div className="mb-5">
-          <p className="font-body text-white/50 text-xs mb-2">Комментарий</p>
-          <textarea
-            value={text}
-            onChange={e => setText(e.target.value)}
-            rows={3}
-            placeholder="Расскажи о своём опыте покупки..."
-            className="w-full px-3 py-2.5 rounded-xl font-body text-sm text-white outline-none resize-none"
-            style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
-          />
-        </div>
-
-        {error && <p className="font-body text-red-400 text-xs mb-3">{error}</p>}
-
-        <button onClick={submit} disabled={saving}
-          className="w-full py-3 rounded-xl font-body font-bold text-sm text-white transition-all hover:scale-105 disabled:opacity-50"
-          style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
-          {saving ? "Отправляю..." : "Отправить отзыв"}
-        </button>
-      </div>
-    </div>
-  );
-}
 
 export default function Profile() {
   const { user, orders, paidItems, logout, loading, refreshProfile } = useAuth();
   const navigate = useNavigate();
-  const [reviewOrderId, setReviewOrderId] = useState<string | null>(null);
-  const [reviewItemName, setReviewItemName] = useState("");
-  const [reviewDone, setReviewDone] = useState<Set<string>>(new Set());
-  const [reviewedOrderIds, setReviewedOrderIds] = useState<Set<string>>(new Set());
-  const [showThanks, setShowThanks] = useState(false);
+
 
   useEffect(() => {
     if (!loading && !user) navigate("/login");
   }, [user, loading]);
 
   useEffect(() => {
-    if (user) {
-      refreshProfile();
-      const token = localStorage.getItem("cambeck_token") || "";
-      fetch(`${REVIEWS_URL}?action=list&limit=200`)
-        .then(r => r.json())
-        .then(d => {
-          if (d.reviews && user) {
-            const myOrderIds = new Set(
-              (d.reviews as Array<{order_id: string, username: string}>)
-                .filter(r => orders.some(o => o.order_id === r.order_id))
-                .map(r => r.order_id)
-            );
-            setReviewedOrderIds(myOrderIds);
-          }
-        })
-        .catch(() => {});
-    }
+    if (user) refreshProfile();
   }, [user]);
 
   if (loading || !user) return (
@@ -125,41 +32,8 @@ export default function Profile() {
     navigate("/");
   }
 
-  function openReview(orderId: string, itemName: string) {
-    setReviewOrderId(orderId);
-    setReviewItemName(itemName);
-  }
-
-  function onReviewDone() {
-    if (reviewOrderId) setReviewDone(prev => new Set([...prev, reviewOrderId]));
-    setReviewOrderId(null);
-    setShowThanks(true);
-    setTimeout(() => setShowThanks(false), 4000);
-  }
-
-  const token = localStorage.getItem("cambeck_token") || "";
-
   return (
     <div className="min-h-screen" style={{ background: "#0F1923" }}>
-      {/* Модалка отзыва */}
-      {reviewOrderId && (
-        <ReviewModal
-          orderId={reviewOrderId}
-          itemName={reviewItemName}
-          token={token}
-          onClose={() => setReviewOrderId(null)}
-          onDone={onReviewDone}
-        />
-      )}
-
-      {/* Тост-благодарность */}
-      {showThanks && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl font-body font-bold text-sm text-white shadow-lg"
-          style={{ background: "linear-gradient(135deg, #00B06F, #007A4D)" }}>
-          🎉 Спасибо за отзыв! Он поможет другим покупателям.
-        </div>
-      )}
-
       {/* Navbar */}
       <nav className="h-14 flex items-center justify-between px-5 border-b border-white/5"
         style={{ background: "#161F2C" }}>
@@ -240,7 +114,6 @@ export default function Profile() {
           ) : (
             <div className="flex flex-col gap-3">
               {orders.map(o => {
-                const alreadyReviewed = reviewDone.has(o.order_id) || reviewedOrderIds.has(o.order_id);
                 return (
                   <div key={o.order_id} className="rounded-2xl p-4"
                     style={{ background: "#161F2C", border: `1px solid ${o.status === "paid" ? "rgba(0,176,111,0.2)" : "rgba(255,255,255,0.06)"}` }}>
@@ -280,21 +153,7 @@ export default function Profile() {
                           <Icon name="MessageCircle" size={14} />
                           Написать продавцу
                         </button>
-                        {alreadyReviewed ? (
-                          <span className="flex items-center gap-1.5 px-4 py-2 rounded-lg font-body text-sm"
-                            style={{ color: "#00D080", background: "rgba(0,176,111,0.1)" }}>
-                            <Icon name="CheckCircle" size={14} />
-                            Отзыв отправлен
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => openReview(o.order_id, o.item_name)}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg font-body font-bold text-sm transition-all hover:scale-105"
-                            style={{ background: "rgba(255,184,0,0.12)", color: "#FFB800", border: "1px solid rgba(255,184,0,0.25)" }}>
-                            <Icon name="Star" size={14} />
-                            Оставить отзыв
-                          </button>
-                        )}
+
                       </div>
                     )}
                   </div>

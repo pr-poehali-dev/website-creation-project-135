@@ -5,13 +5,11 @@ const ITEMS_IMG = "https://cdn.poehali.dev/projects/55eebfd7-5c19-4adf-ae5d-100f
 type Props = {
   onOpenSupport: () => void;
   onScrollTo: (id: string) => void;
-  reviewModalOpen: boolean;
   supportModalOpen: boolean;
-  onCloseReviews: () => void;
   onCloseSupport: () => void;
 };
 
-export default function SupportSection({ onOpenSupport, onScrollTo, reviewModalOpen, supportModalOpen, onCloseReviews, onCloseSupport }: Props) {
+export default function SupportSection({ onOpenSupport, onScrollTo, supportModalOpen, onCloseSupport }: Props) {
   return (
     <>
       {/* ---- SUPPORT ---- */}
@@ -95,56 +93,13 @@ export default function SupportSection({ onOpenSupport, onScrollTo, reviewModalO
           </div>
           <p className="font-body text-white/30 text-sm">© 2026 КамбекШОП. Все права защищены.</p>
           <div className="flex gap-4">
-            {["Каталог", "Отзывы", "Поддержка"].map((s) => (
+            {["Каталог", "Поддержка"].map((s) => (
               <button key={s} onClick={() => onScrollTo(s)}
                 className="font-body text-sm text-white/30 hover:text-white/70 transition-colors">{s}</button>
             ))}
           </div>
         </div>
       </footer>
-
-      {/* ---- REVIEWS MODAL ---- */}
-      {reviewModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}
-          onClick={onCloseReviews}>
-          <div className="w-full max-w-lg rounded-2xl p-6 animate-bounce-in"
-            style={{ background: "#161F2C", border: "1px solid rgba(255,255,255,0.1)" }}
-            onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="font-display font-bold text-white text-xl">⭐ Наши отзывы</h3>
-              <button onClick={onCloseReviews}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all">
-                <Icon name="X" size={16} />
-              </button>
-            </div>
-            <p className="font-body text-white/50 text-sm mb-5">Читай честные отзывы покупателей на независимых платформах:</p>
-            <div className="flex flex-col gap-3">
-              <a href="https://beee.pro/shop/user/138944" target="_blank" rel="noopener noreferrer"
-                className="btn-shimmer flex items-center gap-3 p-4 rounded-xl text-white font-body font-bold transition-all hover:scale-[1.02]"
-                style={{ background: "linear-gradient(135deg, #7B2FE0, #5B1FB0)" }}>
-                <Icon name="Star" size={18} />
-                <div><div className="text-sm">Beee.pro — профиль #1</div><div className="text-xs text-white/50">beee.pro/shop/user/138944</div></div>
-                <Icon name="ExternalLink" size={14} className="ml-auto opacity-50" />
-              </a>
-              <a href="https://beee.pro/shop/user/325959" target="_blank" rel="noopener noreferrer"
-                className="btn-shimmer flex items-center gap-3 p-4 rounded-xl text-white font-body font-bold transition-all hover:scale-[1.02]"
-                style={{ background: "linear-gradient(135deg, #7B2FE0, #5B1FB0)" }}>
-                <Icon name="Star" size={18} />
-                <div><div className="text-sm">Beee.pro — профиль #2</div><div className="text-xs text-white/50">beee.pro/shop/user/325959</div></div>
-                <Icon name="ExternalLink" size={14} className="ml-auto opacity-50" />
-              </a>
-              <a href="https://easydonate.shop/users?id=019b3bda-6875-76b2-b6b2-4ac5a47b00dc" target="_blank" rel="noopener noreferrer"
-                className="btn-shimmer flex items-center gap-3 p-4 rounded-xl text-white font-body font-bold transition-all hover:scale-[1.02]"
-                style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
-                <Icon name="Star" size={18} />
-                <div><div className="text-sm">EasyDonate — отзывы</div><div className="text-xs text-white/50">easydonate.shop</div></div>
-                <Icon name="ExternalLink" size={14} className="ml-auto opacity-50" />
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ---- SUPPORT MODAL ---- */}
       {supportModalOpen && (
