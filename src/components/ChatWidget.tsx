@@ -98,7 +98,7 @@ export default function ChatWidget() {
   useEffect(() => {
     if (!open || !nameEntered) return;
     fetchMessages();
-    const interval = setInterval(fetchMessages, 3000);
+    const interval = setInterval(fetchMessages, 8000);
     return () => clearInterval(interval);
   }, [open, nameEntered, chatId]);
 

@@ -5,7 +5,7 @@ import Icon from "@/components/ui/icon";
 
 const SELLER_CHAT_URL = "https://functions.poehali.dev/6f29f896-2b7e-4b27-ad18-6f4da48ef96a";
 const AUTH_URL = "https://functions.poehali.dev/4d9f59a5-cbc5-418a-bb2f-849af25b8236";
-const POLL_INTERVAL = 2000;
+const POLL_INTERVAL = 8000;
 
 interface Message {
   id: string;

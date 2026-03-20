@@ -310,21 +310,21 @@ export default function Admin() {
     fetchOnlineCount();
     fetchTotalVisits();
     fetchUsdRate();
-    const interval = setInterval(() => { fetchChats(); fetchSellerChats(); fetchOrders(); fetchOnlineCount(); }, 4000);
+    const interval = setInterval(() => { fetchChats(); fetchSellerChats(); fetchOrders(); fetchOnlineCount(); }, 15000);
     return () => clearInterval(interval);
   }, [isAuthed]);
 
   useEffect(() => {
     if (!selectedChat) return;
     fetchMessages(selectedChat.id);
-    const interval = setInterval(() => fetchMessages(selectedChat.id), 2000);
+    const interval = setInterval(() => fetchMessages(selectedChat.id), 5000);
     return () => clearInterval(interval);
   }, [selectedChat]);
 
   useEffect(() => {
     if (!selectedSellerChat) return;
     fetchSellerMessages(selectedSellerChat.id);
-    const interval = setInterval(() => fetchSellerMessages(selectedSellerChat.id), 2000);
+    const interval = setInterval(() => fetchSellerMessages(selectedSellerChat.id), 5000);
     return () => clearInterval(interval);
   }, [selectedSellerChat]);
 
