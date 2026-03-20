@@ -1,11 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 import { useAuth } from "@/context/AuthContext";
 
 const ORDERS_URL = "https://functions.poehali.dev/f852d147-eae1-4265-a94d-63d014c42231";
-const SBP_URL = "https://functions.poehali.dev/42feca66-55a3-499c-b7b5-ea34fc0494ec";
-const USD_TO_RUB_DEFAULT = 81.91;
 
 const NETWORKS = [
   { id: "LTC",      label: "LTC (Litecoin)",     icon: "Ł", color: "#A8A9AD" },
@@ -30,78 +28,13 @@ type Props = {
 export default function BuyModal({ item, onClose }: Props) {
   const navigate = useNavigate();
   const { user, token } = useAuth();
-  const [payMethod, setPayMethod] = useState<"card" | "crypto" | null>(null);
+  const [payMethod, setPayMethod] = useState<"crypto" | null>(null);
   const [network, setNetwork] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [agreed, setAgreed] = useState(false);
-  const [usdRate, setUsdRate] = useState(USD_TO_RUB_DEFAULT);
-
-  useEffect(() => {
-    fetch(`${ORDERS_URL}?action=usd_rate`)
-      .then(r => r.json())
-      .then(d => { if (d.rate) setUsdRate(d.rate); })
-      .catch(() => {});
-  }, []);
-
   const maxQty = Math.min(item.stock, 9999);
-  const totalRub = Math.ceil(item.priceUsd * quantity * usdRate);
-
-  // СБП deeplink — открывает Сбербанк, через 1.5с переходит на страницу с реквизитами
-  function openSbpDeeplink(orderId: string) {
-    const comment = encodeURIComponent(`Заказ ${orderId.slice(0, 8).toUpperCase()}`);
-    const phone = "79181440716";
-    window.location.href = `sberbankonline://payment/transfer?phone=${phone}&amount=${totalRub}&currency=RUB&comment=${comment}`;
-    setTimeout(() => {
-      navigate(`/pay?order_id=${orderId}`);
-    }, 1500);
-  }
-
-  async function payBySbp() {
-    setLoading(true);
-    setError("");
-    try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (token) headers["X-Auth-Token"] = token;
-      let visitorId = localStorage.getItem("cambeck_visitor_id");
-      if (!visitorId) { visitorId = Math.random().toString(36).slice(2) + Date.now(); localStorage.setItem("cambeck_visitor_id", visitorId); }
-      // Создаём заказ
-      const res = await fetch(`${ORDERS_URL}?action=create`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          item_id: item.id,
-          item_name: item.name,
-          price_usd: item.priceUsd,
-          quantity,
-          network: "SBP",
-          game: item.game || "steal-a-brainrot",
-          visitor_id: visitorId,
-          visitor_name: user?.name || "Покупатель",
-        }),
-      });
-      const data = await res.json();
-      if (data.error) { setError(data.error); setLoading(false); return; }
-      localStorage.setItem("cambeck_pending_order", JSON.stringify({
-        order_id: data.order_id,
-        item_name: item.name,
-        amount_usd: data.amount_usd,
-        created_at: new Date().toISOString(),
-      }));
-      // Инициируем СБП-заказ в фоне
-      fetch(`${SBP_URL}?action=create`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order_id: data.order_id }),
-      });
-      // Открываем банковское приложение с предзаполненной суммой
-      openSbpDeeplink(data.order_id);
-    } catch {
-      setError("Ошибка соединения, попробуй ещё раз");
-      setLoading(false);
-    }
-  }
 
   async function payByCrypto() {
     if (!network) { setError("Выберите сеть оплаты"); return; }
@@ -216,37 +149,12 @@ export default function BuyModal({ item, onClose }: Props) {
 
           {/* Итого */}
           <div className="flex items-center justify-between px-4 py-3 rounded-xl"
-            style={{ background: payMethod === "card" ? "rgba(33,191,115,0.08)" : "rgba(0,102,255,0.08)", border: `1px solid ${payMethod === "card" ? "rgba(33,191,115,0.2)" : "rgba(0,102,255,0.15)"}` }}>
+            style={{ background: "rgba(0,102,255,0.08)", border: "1px solid rgba(0,102,255,0.15)" }}>
             <span className="font-body text-white/50 text-sm">К оплате</span>
             <div className="text-right">
-              <span className="font-display font-bold text-2xl" style={{ color: payMethod === "card" ? "#21BF73" : "#4DA6FF" }}>
-                {payMethod === "card" || payMethod === null ? `${totalRub} ₽` : `${totalRub} ₽`}
+              <span className="font-display font-bold text-2xl" style={{ color: "#4DA6FF" }}>
+                ${(item.priceUsd * quantity).toFixed(2)}
               </span>
-            </div>
-          </div>
-
-          {/* Выбор способа оплаты */}
-          <div>
-            <p className="font-body text-white/50 text-xs mb-2">Способ оплаты</p>
-            <div className="flex flex-col gap-2">
-              {/* СБП / Карта Сбер */}
-              <button
-                onClick={() => { setPayMethod("card"); setNetwork(null); }}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all"
-                style={{
-                  background: payMethod === "card" ? "rgba(33,191,115,0.12)" : "rgba(255,255,255,0.04)",
-                  border: `1px solid ${payMethod === "card" ? "rgba(33,191,115,0.4)" : "rgba(255,255,255,0.07)"}`,
-                }}
-              >
-                <span className="text-xl">🟢</span>
-                <div className="flex-1">
-                  <div className="font-body font-bold text-sm text-white">СБП / Карта Сбербанк</div>
-                  <div className="font-body text-xs text-white/40">Перевод в рублях · {totalRub} ₽</div>
-                </div>
-                {payMethod === "card" && <span className="text-green-400 text-lg">✓</span>}
-              </button>
-
-
             </div>
           </div>
 
@@ -300,11 +208,11 @@ export default function BuyModal({ item, onClose }: Props) {
 
           {/* Кнопка оплаты */}
           <button
-            onClick={payBySbp}
+            onClick={payByCrypto}
             disabled={loading || !payMethod || !agreed}
             className="w-full py-3.5 rounded-xl font-body font-bold text-white text-base disabled:opacity-40"
             style={{
-              background: "linear-gradient(135deg, #21BF73, #158F55)",
+              background: "linear-gradient(135deg, #0066FF, #0044BB)",
               touchAction: "manipulation",
               border: "none",
               cursor: "pointer",
@@ -315,7 +223,7 @@ export default function BuyModal({ item, onClose }: Props) {
                 <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
                 Создаём заказ...
               </span>
-            ) : "🟢 Оплатить по СБП / картой"}
+            ) : "₿ Оплатить криптой"}
           </button>
         </div>
       </div>

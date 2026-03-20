@@ -1,1 +1,9 @@
-{}
+{
+  "seller-chat": "https://functions.poehali.dev/6f29f896-2b7e-4b27-ad18-6f4da48ef96a",
+  "online": "https://functions.poehali.dev/2edf71d1-04dc-4be0-8481-958f413aed14",
+  "yookassa-yookassa": "https://functions.poehali.dev/bf42c9ea-422a-4741-b1e0-fd4990da0cfd",
+  "yookassa-yookassa-webhook": "https://functions.poehali.dev/f5aff1fd-6ff0-4a98-aa52-70d5fe4e7711",
+  "auth": "https://functions.poehali.dev/4d9f59a5-cbc5-418a-bb2f-849af25b8236",
+  "orders": "https://functions.poehali.dev/f852d147-eae1-4265-a94d-63d014c42231",
+  "chat": "https://functions.poehali.dev/5dc1e3a3-dd70-49b6-a971-dd798391a238"
+}
