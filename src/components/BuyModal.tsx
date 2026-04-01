@@ -41,7 +41,7 @@ export default function BuyModal({ item, onClose }: Props) {
   const { user, token, refreshProfile } = useAuth();
   const [quantity, setQuantity] = useState(1);
   const [agreed, setAgreed] = useState(false);
-  const [step, setStep] = useState<"details" | "payment" | "success" | "error">("details");
+  const [step, setStep] = useState<"details" | "payment" | "waiting" | "success" | "error">("details");
   const [copied, setCopied] = useState(false);
   const [payMethod, setPayMethod] = useState<PaymentMethod>("sberbank");
   const [rubRate, setRubRate] = useState<number | null>(null);
@@ -120,6 +120,9 @@ export default function BuyModal({ item, onClose }: Props) {
         setStep("success");
         // Обновляем профиль чтобы заказ появился в истории
         await refreshProfile();
+      } else if (data.status === "sbp_pending") {
+        setCheckResult("paid");
+        setStep("waiting");
       } else {
         setCheckResult("pending");
       }
@@ -195,7 +198,7 @@ export default function BuyModal({ item, onClose }: Props) {
               )}
               <div>
                 <h3 className="font-display font-bold text-white text-lg">
-                  {step === "details" ? "Оформление заказа" : step === "payment" ? "Оплата" : step === "success" ? "Заказ принят" : "Ошибка"}
+                  {step === "details" ? "Оформление заказа" : step === "payment" ? "Оплата" : step === "waiting" ? "Заказ принят" : step === "success" ? "Заказ принят" : "Ошибка"}
                 </h3>
                 <p className="font-body text-white/40 text-xs mt-0.5 truncate max-w-[220px]">{item.name}</p>
               </div>
@@ -487,7 +490,40 @@ export default function BuyModal({ item, onClose }: Props) {
           </div>
         )}
 
-        {/* Шаг 3 — успех */}
+        {/* Шаг 3 — ожидание подтверждения СБП */}
+        {step === "waiting" && (
+          <div className="px-5 py-8 flex flex-col items-center gap-4 text-center">
+            <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl"
+              style={{ background: "rgba(255,184,0,0.12)", border: "1px solid rgba(255,184,0,0.3)" }}>
+              ⏳
+            </div>
+            <div>
+              <h3 className="font-display font-bold text-white text-xl mb-2">Заказ ожидает проверки</h3>
+              <p className="font-body text-white/50 text-sm">
+                Ваш заказ принят! Администратор проверит оплату и подтвердит его в ближайшее время.
+              </p>
+            </div>
+            <div className="w-full rounded-xl px-4 py-3"
+              style={{ background: "rgba(255,184,0,0.07)", border: "1px solid rgba(255,184,0,0.2)" }}>
+              <p className="font-body text-white/50 text-xs mb-1">Номер заказа</p>
+              <p className="font-mono text-yellow-400 text-sm font-bold">#{order?.order_id.slice(0, 8).toUpperCase()}</p>
+            </div>
+            <div className="w-full rounded-xl px-4 py-3 flex items-start gap-2"
+              style={{ background: "rgba(0,102,255,0.06)", border: "1px solid rgba(0,102,255,0.15)" }}>
+              <span className="text-blue-400 text-sm mt-0.5">ℹ️</span>
+              <p className="font-body text-white/40 text-xs leading-relaxed text-left">
+                После подтверждения оплаты продавец свяжется с вами и передаст товар. Обычно это занимает до 15 минут.
+              </p>
+            </div>
+            <button onClick={onClose}
+              className="w-full py-3 rounded-xl font-body font-bold text-sm text-center transition-all hover:scale-105"
+              style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)" }}>
+              Закрыть
+            </button>
+          </div>
+        )}
+
+        {/* Шаг 4 — успех */}
         {step === "success" && (
           <div className="px-5 py-8 flex flex-col items-center gap-4 text-center">
             <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl"

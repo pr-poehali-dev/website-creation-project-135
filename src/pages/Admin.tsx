@@ -811,7 +811,7 @@ export default function Admin() {
         <div className="flex items-center gap-1">
           {[
             { id: "chats", label: "💬 Чаты", count: chats.filter(c => c.status === "open").length + sellerChats.reduce((s, c) => s + c.unread, 0) },
-            { id: "orders", label: "📦 Заказы", count: orders.filter(o => o.status === "pending").length },
+            { id: "orders", label: "📦 Заказы", count: orders.filter(o => o.status === "pending" || o.status === "sbp_pending").length },
             { id: "stock", label: "🗄️ Склад", count: null },
             { id: "catalog", label: "🛒 Каталог", count: null },
           ].map(t => (

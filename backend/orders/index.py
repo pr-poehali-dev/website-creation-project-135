@@ -415,6 +415,10 @@ def handler(event: dict, context) -> dict:
         order_game = row[9] or "steal-a-brainrot"
         existing_chat_id = str(row[10]) if row[10] else None
 
+        if row[7] == "sbp_pending":
+            conn.close()
+            return ok({"status": "sbp_pending", "accounts": [], "chat_id": None, "needs_chat": False})
+
         if row[7] == "paid":
             accounts = []
             chat_id = existing_chat_id
@@ -437,14 +441,10 @@ def handler(event: dict, context) -> dict:
         else:
             created_ts = int(datetime.datetime.fromisoformat(str(created_at)).timestamp())
 
-        # SBP/Сбербанк — ручная проверка, сразу создаём чат и помечаем как paid
+        # SBP/Сбербанк — помечаем как sbp_pending (ждёт ручного подтверждения от админа)
         if network == "SBP":
-            cur.execute(f"UPDATE {schema}.orders SET status = 'paid', paid_at = NOW() WHERE id = %s", (order_id,))
+            cur.execute(f"UPDATE {schema}.orders SET status = 'sbp_pending' WHERE id = %s", (order_id,))
             conn.commit()
-            chat_id = existing_chat_id
-            if not chat_id:
-                chat_id = create_support_chat(cur, order_id, item_name, visitor_id, visitor_name)
-                conn.commit()
             conn.close()
             send_telegram(
                 f"💳 <b>Новый СБП/Сбербанк заказ!</b>\n\n"
@@ -452,9 +452,9 @@ def handler(event: dict, context) -> dict:
                 f"💵 ${amount_usd:.2f} · СБП\n"
                 f"👤 {visitor_name}\n"
                 f"🔑 #{order_id[:8].upper()}\n\n"
-                f"⚠️ Требуется ручная проверка оплаты!"
+                f"⚠️ Требуется ручное подтверждение в панели администратора!"
             )
-            return ok({"status": "paid", "accounts": [], "chat_id": chat_id, "needs_chat": True})
+            return ok({"status": "sbp_pending", "accounts": [], "chat_id": None, "needs_chat": False})
 
         paid = verify_crypto_payment(network, address, amount_usd, created_ts)
         if paid:
