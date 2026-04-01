@@ -320,7 +320,6 @@ export default function BuyModal({ item, onClose }: Props) {
                     : "Откройте любое банковское приложение и выберите оплату через СБП",
                   `Укажите сумму: ${totalRub ? totalRub.toLocaleString("ru") + " ₽" : "загрузка..."}`,
                   `В комментарии напишите: «${item.name}»`,
-                  "Отправьте скриншот чека в поддержку — товар придёт быстро!",
                 ].map((text, i) => (
                   <div key={i} className="flex items-start gap-3">
                     <span className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center font-bold text-xs text-white"
@@ -356,12 +355,11 @@ export default function BuyModal({ item, onClose }: Props) {
               </div>
             </div>
 
-            {/* Кнопка поддержки */}
-            <a href="https://t.me/your_support" target="_blank" rel="noopener noreferrer"
-              className="w-full py-3.5 rounded-xl font-body font-bold text-white text-sm text-center transition-all hover:scale-[1.02] flex items-center justify-center gap-2"
-              style={{ background: "linear-gradient(135deg, #0099CC, #006699)", boxShadow: "0 4px 15px rgba(0,150,200,0.25)" }}>
-              <span>✈️</span> Отправить чек в поддержку
-            </a>
+            {/* Статус оплаты */}
+            <div className="w-full py-3.5 rounded-xl font-body font-bold text-white text-sm text-center flex items-center justify-center gap-2"
+              style={{ background: "rgba(33,160,72,0.15)", border: "1px solid rgba(33,160,72,0.35)" }}>
+              <span>✅</span> Я оплатил
+            </div>
 
             <p className="font-body text-white/25 text-xs text-center">
               После оплаты ваш заказ будет выполнен в течение нескольких минут
