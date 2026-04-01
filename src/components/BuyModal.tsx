@@ -22,14 +22,33 @@ type Props = {
 
 type PaymentMethod = "sbp" | "sberbank";
 
+type OrderCreated = {
+  order_id: string;
+  amount_rub: number;
+  amount_usd: number;
+};
+
+function getVisitorId() {
+  let vid = localStorage.getItem("cambeck_visitor_id");
+  if (!vid) {
+    vid = Math.random().toString(36).slice(2) + Date.now();
+    localStorage.setItem("cambeck_visitor_id", vid);
+  }
+  return vid;
+}
+
 export default function BuyModal({ item, onClose }: Props) {
-  const { user } = useAuth();
+  const { user, token, refreshProfile } = useAuth();
   const [quantity, setQuantity] = useState(1);
   const [agreed, setAgreed] = useState(false);
-  const [step, setStep] = useState<"details" | "payment">("details");
+  const [step, setStep] = useState<"details" | "payment" | "success" | "error">("details");
   const [copied, setCopied] = useState(false);
   const [payMethod, setPayMethod] = useState<PaymentMethod>("sberbank");
   const [rubRate, setRubRate] = useState<number | null>(null);
+  const [creatingOrder, setCreatingOrder] = useState(false);
+  const [order, setOrder] = useState<OrderCreated | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [checkResult, setCheckResult] = useState<"paid" | "pending" | null>(null);
   const maxQty = Math.min(item.stock, 9999);
 
   const totalUsd = item.priceUsd * quantity;
@@ -42,9 +61,73 @@ export default function BuyModal({ item, onClose }: Props) {
       .catch(() => setRubRate(90));
   }, []);
 
-  function handlePay() {
+  async function handlePay() {
     if (!agreed) return;
-    setStep("payment");
+    setCreatingOrder(true);
+    try {
+      const res = await fetch(`${ORDERS_URL}?action=create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "X-Auth-Token": token } : {}),
+        },
+        body: JSON.stringify({
+          item_id: item.id,
+          item_name: item.name,
+          price_usd: item.priceUsd,
+          quantity,
+          network: "SBP",
+          game: item.game || "steal-a-brainrot",
+          visitor_id: getVisitorId(),
+          visitor_name: user?.username || "Покупатель",
+        }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setStep("error");
+        return;
+      }
+      setOrder({
+        order_id: data.order_id,
+        amount_rub: data.amount_rub || (totalRub ?? Math.ceil(totalUsd * 90)),
+        amount_usd: data.amount_usd || totalUsd,
+      });
+      setStep("payment");
+    } catch {
+      setStep("error");
+    } finally {
+      setCreatingOrder(false);
+    }
+  }
+
+  async function checkPayment() {
+    if (!order) return;
+    setChecking(true);
+    setCheckResult(null);
+    try {
+      const res = await fetch(`${ORDERS_URL}?action=check`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order_id: order.order_id,
+          visitor_id: getVisitorId(),
+          visitor_name: user?.username || "Покупатель",
+        }),
+      });
+      const data = await res.json();
+      if (data.status === "paid") {
+        setCheckResult("paid");
+        setStep("success");
+        // Обновляем профиль чтобы заказ появился в истории
+        await refreshProfile();
+      } else {
+        setCheckResult("pending");
+      }
+    } catch {
+      setCheckResult("pending");
+    } finally {
+      setChecking(false);
+    }
   }
 
   function copyPhone() {
@@ -112,7 +195,7 @@ export default function BuyModal({ item, onClose }: Props) {
               )}
               <div>
                 <h3 className="font-display font-bold text-white text-lg">
-                  {step === "details" ? "Оформление заказа" : "Оплата"}
+                  {step === "details" ? "Оформление заказа" : step === "payment" ? "Оплата" : step === "success" ? "Заказ принят" : "Ошибка"}
                 </h3>
                 <p className="font-body text-white/40 text-xs mt-0.5 truncate max-w-[220px]">{item.name}</p>
               </div>
@@ -124,7 +207,8 @@ export default function BuyModal({ item, onClose }: Props) {
           </div>
         </div>
 
-        {step === "details" ? (
+        {/* Шаг 1 — детали */}
+        {step === "details" && (
           <div className="px-5 py-5 flex flex-col gap-4">
 
             {/* Количество */}
@@ -189,10 +273,12 @@ export default function BuyModal({ item, onClose }: Props) {
                     border: payMethod === "sberbank" ? "1.5px solid rgba(33,160,72,0.5)" : "1.5px solid rgba(255,255,255,0.08)",
                   }}>
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: "#21A048" }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
-                      <path d="M20.9 12.5c.1-.5.1-1 .1-1.5C21 6.2 16.8 2 11.6 2 6.4 2 2 6.5 2 11.7c0 5.3 4.4 9.7 9.7 9.7 2.4 0 4.6-.9 6.3-2.3l-2-2c-1.1.9-2.5 1.4-4 1.4-3.7 0-6.8-3-6.8-6.7 0-3.7 3-6.7 6.7-6.7 3.4 0 6.2 2.5 6.6 5.8H14v2.6h6.9z"/>
-                    </svg>
+                    style={{ background: payMethod === "sberbank" ? "rgba(33,160,72,0.25)" : "rgba(255,255,255,0.06)" }}>
+                    <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "#21A048" }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
+                        <path d="M20.9 12.5c.1-.5.1-1 .1-1.5C21 6.2 16.8 2 11.6 2 6.4 2 2 6.5 2 11.7c0 5.3 4.4 9.7 9.7 9.7 2.4 0 4.6-.9 6.3-2.3l-2-2c-1.1.9-2.5 1.4-4 1.4-3.7 0-6.8-3-6.8-6.7 0-3.7 3-6.7 6.7-6.7 3.4 0 6.2 2.5 6.6 5.8H14v2.6h6.9z"/>
+                      </svg>
+                    </div>
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -259,16 +345,24 @@ export default function BuyModal({ item, onClose }: Props) {
             {/* Кнопка */}
             <button
               onClick={handlePay}
-              disabled={!agreed}
+              disabled={!agreed || creatingOrder}
               className="w-full py-3.5 rounded-xl font-body font-bold text-white text-base transition-all hover:scale-[1.02] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               style={{ background: agreed ? "linear-gradient(135deg, #0066FF, #0044BB)" : "rgba(255,255,255,0.1)", boxShadow: agreed ? "0 4px 20px rgba(0,102,255,0.35)" : "none" }}>
-              {totalRub
+              {creatingOrder ? (
+                <>
+                  <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  Создаём заказ...
+                </>
+              ) : totalRub
                 ? <>Перейти к оплате · {totalRub.toLocaleString("ru")} ₽</>
                 : "Перейти к оплате"}
-              <Icon name="ArrowRight" size={16} />
+              {!creatingOrder && <Icon name="ArrowRight" size={16} />}
             </button>
           </div>
-        ) : (
+        )}
+
+        {/* Шаг 2 — оплата */}
+        {step === "payment" && order && (
           <div className="px-5 py-5 flex flex-col gap-4">
 
             {/* Сумма к оплате — главная карточка */}
@@ -296,15 +390,13 @@ export default function BuyModal({ item, onClose }: Props) {
                       </>
                     )}
                   </div>
-                  <span className="font-body text-white/30 text-xs">${totalUsd.toFixed(2)}</span>
+                  <span className="font-body text-white/30 text-xs">${order.amount_usd.toFixed(2)}</span>
                 </div>
                 <div>
                   <p className="font-body text-white/50 text-xs mb-1">Переведите сумму</p>
-                  {totalRub ? (
-                    <p className="font-display font-bold text-4xl text-white">{totalRub.toLocaleString("ru")} <span style={{ color: "#4ADE80" }}>₽</span></p>
-                  ) : (
-                    <div className="w-5 h-5 rounded-full border-2 border-green-400 border-t-transparent animate-spin" />
-                  )}
+                  <p className="font-display font-bold text-4xl text-white">
+                    {order.amount_rub.toLocaleString("ru")} <span style={{ color: "#4ADE80" }}>₽</span>
+                  </p>
                 </div>
               </div>
             </div>
@@ -318,7 +410,7 @@ export default function BuyModal({ item, onClose }: Props) {
                   payMethod === "sberbank"
                     ? "Откройте приложение Сбербанк → Переводы → По номеру телефона"
                     : "Откройте любое банковское приложение и выберите оплату через СБП",
-                  `Укажите сумму: ${totalRub ? totalRub.toLocaleString("ru") + " ₽" : "загрузка..."}`,
+                  `Укажите сумму: ${order.amount_rub.toLocaleString("ru")} ₽`,
                   `В комментарии напишите: «${item.name}»`,
                 ].map((text, i) => (
                   <div key={i} className="flex items-start gap-3">
@@ -342,14 +434,10 @@ export default function BuyModal({ item, onClose }: Props) {
                 <div className="flex items-center justify-between gap-3">
                   <p className="font-display font-bold text-white text-2xl tracking-wide">{PHONE_DISPLAY}</p>
                   <button onClick={copyPhone}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-body text-xs font-bold transition-all hover:scale-105 flex-shrink-0"
-                    style={{
-                      background: copied ? "rgba(33,160,72,0.25)" : "rgba(255,255,255,0.1)",
-                      color: copied ? "#4ADE80" : "rgba(255,255,255,0.8)",
-                      border: `1px solid ${copied ? "rgba(33,160,72,0.5)" : "rgba(255,255,255,0.12)"}`,
-                    }}>
-                    <Icon name={copied ? "Check" : "Copy"} size={13} />
-                    {copied ? "Скопировано!" : "Копировать"}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-body text-xs font-bold transition-all hover:scale-105 flex-shrink-0"
+                    style={{ background: copied ? "rgba(33,160,72,0.3)" : "rgba(255,255,255,0.1)", color: copied ? "#4ADE80" : "rgba(255,255,255,0.7)", border: `1px solid ${copied ? "rgba(33,160,72,0.4)" : "rgba(255,255,255,0.15)"}` }}>
+                    <Icon name={copied ? "Check" : "Copy"} size={12} />
+                    {copied ? "Скопировано" : "Копировать"}
                   </button>
                 </div>
                 {payMethod === "sbp" && (
@@ -365,15 +453,100 @@ export default function BuyModal({ item, onClose }: Props) {
               </div>
             </div>
 
-            {/* Статус оплаты */}
-            <div className="w-full py-3.5 rounded-xl font-body font-bold text-white text-sm text-center flex items-center justify-center gap-2"
-              style={{ background: "rgba(33,160,72,0.15)", border: "1px solid rgba(33,160,72,0.35)" }}>
-              <span>✅</span> Я оплатил
-            </div>
+            {/* Кнопка "Я оплатил" */}
+            <button
+              onClick={checkPayment}
+              disabled={checking}
+              className="w-full py-3.5 rounded-xl font-body font-bold text-white text-sm transition-all hover:scale-[1.02] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              style={{ background: "linear-gradient(135deg, rgba(33,160,72,0.3), rgba(33,160,72,0.2))", border: "1px solid rgba(33,160,72,0.5)" }}>
+              {checking ? (
+                <>
+                  <div className="w-4 h-4 rounded-full border-2 border-green-400 border-t-transparent animate-spin" />
+                  Проверяем оплату...
+                </>
+              ) : (
+                <>
+                  <span>✅</span> Я оплатил
+                </>
+              )}
+            </button>
+
+            {/* Сообщение если оплата не найдена */}
+            {checkResult === "pending" && (
+              <div className="rounded-xl px-4 py-3 text-center"
+                style={{ background: "rgba(255,184,0,0.08)", border: "1px solid rgba(255,184,0,0.2)" }}>
+                <p className="font-body text-yellow-400 text-xs">
+                  ⏳ Оплата пока не поступила. Если вы только что перевели — подождите 1–2 минуты и попробуйте снова.
+                </p>
+              </div>
+            )}
 
             <p className="font-body text-white/25 text-xs text-center">
-              После оплаты ваш заказ будет выполнен в течение нескольких минут
+              После подтверждения оплаты продавец свяжется с вами и передаст товар
             </p>
+          </div>
+        )}
+
+        {/* Шаг 3 — успех */}
+        {step === "success" && (
+          <div className="px-5 py-8 flex flex-col items-center gap-4 text-center">
+            <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl"
+              style={{ background: "rgba(33,160,72,0.15)", border: "1px solid rgba(33,160,72,0.3)" }}>
+              ✅
+            </div>
+            <div>
+              <h3 className="font-display font-bold text-white text-xl mb-2">Заказ принят!</h3>
+              <p className="font-body text-white/50 text-sm">
+                Ваш заказ подтверждён. Продавец скоро свяжется с вами и передаст товар.
+              </p>
+            </div>
+            <div className="w-full rounded-xl px-4 py-3"
+              style={{ background: "rgba(0,102,255,0.08)", border: "1px solid rgba(0,102,255,0.2)" }}>
+              <p className="font-body text-white/50 text-xs mb-1">Номер заказа</p>
+              <p className="font-mono text-blue-400 text-sm font-bold">#{order?.order_id.slice(0, 8).toUpperCase()}</p>
+            </div>
+            <div className="flex flex-col gap-2 w-full">
+              <Link to="/profile"
+                onClick={onClose}
+                className="w-full py-3 rounded-xl font-body font-bold text-white text-sm text-center transition-all hover:scale-105"
+                style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
+                Мои заказы
+              </Link>
+              <button onClick={onClose}
+                className="w-full py-3 rounded-xl font-body font-bold text-sm text-center transition-all hover:scale-105"
+                style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                Закрыть
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Ошибка */}
+        {step === "error" && (
+          <div className="px-5 py-8 flex flex-col items-center gap-4 text-center">
+            <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl"
+              style={{ background: "rgba(232,52,58,0.15)", border: "1px solid rgba(232,52,58,0.3)" }}>
+              ❌
+            </div>
+            <div>
+              <h3 className="font-display font-bold text-white text-xl mb-2">Ошибка создания заказа</h3>
+              <p className="font-body text-white/50 text-sm">
+                Что-то пошло не так. Попробуй ещё раз или обратись в поддержку.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 w-full">
+              <button
+                onClick={() => setStep("details")}
+                className="w-full py-3 rounded-xl font-body font-bold text-white text-sm text-center transition-all hover:scale-105"
+                style={{ background: "linear-gradient(135deg, #0066FF, #0044BB)" }}>
+                Попробовать снова
+              </button>
+              <button onClick={onClose}
+                className="w-full py-3 rounded-xl font-body font-bold text-sm text-center transition-all hover:scale-105"
+                style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                Закрыть
+              </button>
+            </div>
           </div>
         )}
       </div>

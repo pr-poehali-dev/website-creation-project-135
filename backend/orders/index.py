@@ -437,6 +437,25 @@ def handler(event: dict, context) -> dict:
         else:
             created_ts = int(datetime.datetime.fromisoformat(str(created_at)).timestamp())
 
+        # SBP/Сбербанк — ручная проверка, сразу создаём чат и помечаем как paid
+        if network == "SBP":
+            cur.execute(f"UPDATE {schema}.orders SET status = 'paid', paid_at = NOW() WHERE id = %s", (order_id,))
+            conn.commit()
+            chat_id = existing_chat_id
+            if not chat_id:
+                chat_id = create_support_chat(cur, order_id, item_name, visitor_id, visitor_name)
+                conn.commit()
+            conn.close()
+            send_telegram(
+                f"💳 <b>Новый СБП/Сбербанк заказ!</b>\n\n"
+                f"🛒 {item_name} × {quantity}\n"
+                f"💵 ${amount_usd:.2f} · СБП\n"
+                f"👤 {visitor_name}\n"
+                f"🔑 #{order_id[:8].upper()}\n\n"
+                f"⚠️ Требуется ручная проверка оплаты!"
+            )
+            return ok({"status": "paid", "accounts": [], "chat_id": chat_id, "needs_chat": True})
+
         paid = verify_crypto_payment(network, address, amount_usd, created_ts)
         if paid:
             accounts = []
