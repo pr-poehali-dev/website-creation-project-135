@@ -352,6 +352,16 @@ export default function BuyModal({ item, onClose }: Props) {
                     {copied ? "Скопировано!" : "Копировать"}
                   </button>
                 </div>
+                {payMethod === "sbp" && (
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <div className="w-4 h-4 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: "#21A048" }}>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="white">
+                        <path d="M20.9 12.5c.1-.5.1-1 .1-1.5C21 6.2 16.8 2 11.6 2 6.4 2 2 6.5 2 11.7c0 5.3 4.4 9.7 9.7 9.7 2.4 0 4.6-.9 6.3-2.3l-2-2c-1.1.9-2.5 1.4-4 1.4-3.7 0-6.8-3-6.8-6.7 0-3.7 3-6.7 6.7-6.7 3.4 0 6.2 2.5 6.6 5.8H14v2.6h6.9z"/>
+                      </svg>
+                    </div>
+                    <p className="font-body text-white/40 text-xs">Переводили на <span className="text-white/60 font-bold">Сбербанк</span></p>
+                  </div>
+                )}
               </div>
             </div>
 
