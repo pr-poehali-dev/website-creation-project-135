@@ -458,7 +458,7 @@ export default function Admin() {
   }
 
   async function confirmSbp(orderId: string) {
-    const res = await fetch(`${SBP_URL}?action=confirm`, {
+    const res = await fetch(`${ORDERS_URL}?action=confirm`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Admin-Token": token },
       body: JSON.stringify({ order_id: orderId }),
@@ -468,11 +468,12 @@ export default function Admin() {
   }
 
   async function rejectSbp(orderId: string) {
-    await fetch(`${SBP_URL}?action=reject`, {
+    await fetch(`${ORDERS_URL}?action=reject`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Admin-Token": token },
       body: JSON.stringify({ order_id: orderId }),
     });
+    setConfirmingId(null);
     fetchOrders();
   }
 

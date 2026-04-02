@@ -530,6 +530,31 @@ def handler(event: dict, context) -> dict:
         )
         return ok({"success": True, "accounts_issued": len(accounts), "accounts": accounts, "chat_id": chat_id, "needs_chat": order_game != "steal-a-brainrot"})
 
+    # POST reject — отклонить СБП заказ (admin)
+    if method == "POST" and action == "reject":
+        if not is_admin:
+            return err("Нет доступа", 403)
+        order_id = body.get("order_id")
+        if not order_id:
+            return err("Нет order_id")
+        conn = get_conn()
+        cur = conn.cursor()
+        schema = os.environ.get("MAIN_DB_SCHEMA", "public")
+        cur.execute(f"SELECT id, item_name, quantity FROM {schema}.orders WHERE id = %s AND status = 'sbp_pending'", (order_id,))
+        row = cur.fetchone()
+        if not row:
+            conn.close()
+            return err("Заказ не найден или не в статусе ожидания", 404)
+        cur.execute(f"UPDATE {schema}.orders SET status = 'rejected' WHERE id = %s", (order_id,))
+        conn.commit()
+        conn.close()
+        send_telegram(
+            f"❌ <b>Заказ отклонён</b>\n\n"
+            f"🛒 {row[1]} × {row[2]}\n"
+            f"🔑 #{order_id[:8].upper()}"
+        )
+        return ok({"success": True})
+
     # GET list — заказы для admin
     if method == "GET" and action == "list":
         if not is_admin:
